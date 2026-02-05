@@ -213,7 +213,9 @@ export class KnowledgeBase {
 
     // Check if link already exists using markdown link pattern
     const entry2FileName = entry2.path;
-    const linkPattern = new RegExp(`\\[([^\\]]+)\\]\\(\\.\\/${entry2FileName}\\)`);
+    // Escape special regex characters to prevent ReDoS
+    const escapedFileName = entry2FileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const linkPattern = new RegExp(`\\[([^\\]]+)\\]\\(\\.\\/${escapedFileName}\\)`);
     
     if (!linkPattern.test(entry1.content)) {
       // Read original file to preserve frontmatter

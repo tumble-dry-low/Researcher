@@ -211,12 +211,20 @@ export class KnowledgeBase {
       throw new Error('One or both entries not found');
     }
 
-    // Add link to entry1 if not already present
+    // Check if link already exists using markdown link pattern
     const entry2FileName = entry2.path;
-    if (!entry1.content.includes(entry2FileName)) {
-      const updatedContent = entry1.content + `\n\n## Related\n\n- [${entry2.title}](./${entry2FileName})\n`;
+    const linkPattern = new RegExp(`\\[([^\\]]+)\\]\\(\\.\\/${entry2FileName}\\)`);
+    
+    if (!linkPattern.test(entry1.content)) {
+      // Read original file to preserve frontmatter
       const filePath = path.join(this.entriesPath, entry1.path);
-      const parsed = matter(updatedContent);
+      const originalContent = await fs.readFile(filePath, 'utf-8');
+      const parsed = matter(originalContent);
+      
+      // Append link to content
+      const updatedContent = parsed.content + `\n\n## Related\n\n- [${entry2.title}](./${entry2FileName})\n`;
+      
+      // Write back with preserved frontmatter
       const fileContent = matter.stringify(updatedContent, parsed.data);
       await fs.writeFile(filePath, fileContent);
     }

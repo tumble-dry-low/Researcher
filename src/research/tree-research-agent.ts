@@ -39,6 +39,9 @@ export interface TreeResearchResult {
  */
 export class TreeResearchAgent {
   private structuredAgent: StructuredResearchAgent;
+  private readonly MAX_FOLLOW_UP_QUESTIONS = 2;
+  private readonly MAX_FOLLOW_UP_ARGUMENT_LENGTH = 100;
+  private readonly MAX_POTENTIAL_ANSWER_LENGTH = 150;
 
   constructor() {
     this.structuredAgent = new StructuredResearchAgent();
@@ -200,7 +203,7 @@ export class TreeResearchAgent {
           // Extract a key argument as a follow-up question
           const keyArgument = position.arguments[1]; // Skip the "Position:" description
           if (keyArgument && !keyArgument.startsWith('Position:')) {
-            const followUpQuestion = `Is this claim accurate: ${keyArgument.substring(0, 100)}...?`;
+            const followUpQuestion = `Is this claim accurate: ${keyArgument.substring(0, this.MAX_FOLLOW_UP_ARGUMENT_LENGTH)}...?`;
 
             followUpQuestions.push({
               question: followUpQuestion,
@@ -214,7 +217,7 @@ export class TreeResearchAgent {
     return {
       conclusive,
       correctPosition: conclusive ? strongPositions[0]?.position : undefined,
-      followUpQuestions: followUpQuestions.slice(0, 2), // Limit to 2 follow-ups per node
+      followUpQuestions: followUpQuestions.slice(0, this.MAX_FOLLOW_UP_QUESTIONS),
     };
   }
 
@@ -245,7 +248,7 @@ export class TreeResearchAgent {
         // Take the first non-description argument as a potential answer
         const relevantArgs = position.arguments.filter(arg => !arg.startsWith('Position:'));
         if (relevantArgs.length > 0) {
-          potentialAnswers.push(`${position.position}: ${relevantArgs[0].substring(0, 150)}...`);
+          potentialAnswers.push(`${position.position}: ${relevantArgs[0].substring(0, this.MAX_POTENTIAL_ANSWER_LENGTH)}...`);
         }
       }
     });

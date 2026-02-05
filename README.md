@@ -5,6 +5,7 @@ A deep research agent with web search capabilities and a linked knowledge base m
 ## Features
 
 - 🌐 **Web Research**: Perform web searches and deep research on any topic
+- ⚡ **Parallel Execution**: Research multiple topics simultaneously for efficiency
 - 📚 **Knowledge Base**: Accumulate research in a markdown-based wiki with automatic linking
 - 🔗 **Linked Notes**: Create connections between research entries
 - 📇 **Smart Indexing**: Automatic index generation and search within your knowledge base
@@ -96,6 +97,35 @@ Conduct comprehensive research on a topic with multiple search queries and synth
 ```bash
 researcher research "neural networks" --depth 5
 ```
+
+### Parallel Research
+
+```bash
+researcher parallel <topics> [options]
+```
+
+Research multiple topics in parallel for maximum efficiency. Uses parallel subagent spawning and keeps only the results (not full context) for optimal performance.
+
+**Options:**
+- `-d, --depth <number>` - Research depth from 1-5 (default: 3)
+- `-s, --save` - Save research to knowledge base (default: true)
+
+**Topics Format:**
+- Comma-separated: `"topic1,topic2,topic3"`
+- Newline-separated (in quotes)
+
+**Example:**
+```bash
+# Research multiple topics simultaneously
+researcher parallel "quantum computing,machine learning,neural networks" --depth 3
+
+# All results are saved efficiently without keeping full context
+```
+
+**Benefits:**
+- ⚡ Faster execution through parallel processing
+- 💾 Memory efficient - only final results are retained
+- 🎯 Perfect for batch research tasks
 
 ### Knowledge Base Management
 

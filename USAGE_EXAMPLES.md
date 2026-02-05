@@ -90,6 +90,48 @@ Sources:
 ✓ Research saved to knowledge base
 ```
 
+### 4. Parallel Research (Efficient Multi-Topic Research)
+
+```bash
+# Research multiple topics simultaneously
+researcher parallel "quantum computing,machine learning,neural networks" --depth 2
+
+# Research with higher depth
+researcher parallel "AI,ML,DL" --depth 4
+
+# Research without saving
+researcher parallel "topic1,topic2,topic3" --no-save
+```
+
+**Output:**
+```
+🔬 Starting parallel research on 3 topics
+  Depth level: 2
+  Topics: quantum computing, machine learning, neural networks
+
+✓ Parallel research complete in 0.45s!
+
+[1/3] quantum computing
+  Summary: Research on "quantum computing" has been completed...
+  Findings: 5 | Sources: 4
+
+[2/3] machine learning
+  Summary: Research on "machine learning" has been completed...
+  Findings: 5 | Sources: 4
+
+[3/3] neural networks
+  Summary: Research on "neural networks" has been completed...
+  Findings: 5 | Sources: 4
+
+💾 Saving all research to knowledge base...
+✓ Saved 3 research entries to knowledge base
+```
+
+**Benefits:**
+- ⚡ Much faster than sequential research
+- 💾 Memory efficient - only stores final results
+- 🎯 Perfect for researching related topics together
+
 ## Working with the Knowledge Base
 
 ### Viewing Your Research
@@ -219,10 +261,8 @@ researcher init
 # Research main topic
 researcher research "machine learning in healthcare" --depth 5
 
-# Research related subtopics
-researcher research "medical image analysis" --depth 4
-researcher research "clinical decision support systems" --depth 4
-researcher research "privacy in healthcare AI" --depth 4
+# Research related subtopics in parallel (FAST!)
+researcher parallel "medical image analysis,clinical decision support systems,privacy in healthcare AI" --depth 4
 
 # Link everything together
 researcher kb link research-machine-learning-in-healthcare research-medical-image-analysis
@@ -282,7 +322,7 @@ researcher research "topic"  # Uses ./knowledge-base
 
 ```bash
 #!/bin/bash
-# research-topics.sh
+# research-topics.sh - OLD WAY (sequential)
 
 topics=(
   "artificial intelligence"
@@ -300,6 +340,23 @@ done
 
 researcher kb index
 echo "Research complete! View with: researcher kb list"
+```
+
+### Batch Research (Parallel - FASTER!)
+
+```bash
+# research-topics-parallel.sh - NEW WAY (parallel)
+
+# Research multiple topics at once - much faster!
+researcher parallel "artificial intelligence,machine learning,deep learning,neural networks,natural language processing" --depth 3
+
+researcher kb index
+echo "Research complete! View with: researcher kb list"
+
+# Or break into smaller batches
+researcher parallel "topic1,topic2,topic3" --depth 3
+researcher parallel "topic4,topic5,topic6" --depth 3
+researcher kb index
 ```
 
 ### Exporting Research

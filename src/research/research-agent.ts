@@ -13,6 +13,7 @@ export interface ResearchResult {
 /**
  * ResearchAgent conducts deep research on topics
  * Uses web search and analysis to gather comprehensive information
+ * Supports parallel execution for efficiency
  */
 export class ResearchAgent {
   private searcher: WebSearcher;
@@ -50,6 +51,25 @@ export class ResearchAgent {
       createdAt: new Date().toISOString(),
       relatedTopics,
     };
+  }
+
+  /**
+   * Conduct research on multiple topics in parallel
+   * Returns only the results, not the full context for efficiency
+   * @param topics - Array of topics to research
+   * @param depth - Research depth (1-5)
+   * @returns Array of research results
+   */
+  async conductParallelResearch(topics: string[], depth: number = 3): Promise<ResearchResult[]> {
+    console.log(`[ResearchAgent] Starting parallel research on ${topics.length} topics with depth ${depth}`);
+
+    // Execute all research operations in parallel
+    const researchPromises = topics.map(topic => this.conductResearch(topic, depth));
+    const results = await Promise.all(researchPromises);
+
+    console.log(`[ResearchAgent] Completed parallel research on ${topics.length} topics`);
+
+    return results;
   }
 
   /**

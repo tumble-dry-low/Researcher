@@ -36,17 +36,17 @@ export class WebSearcher {
   }
 
   /**
-   * Perform a deep search with multiple queries
+   * Perform a deep search with multiple queries in parallel
    * @param queries - Array of search queries
    * @returns Aggregated search results
    */
   async deepSearch(queries: string[]): Promise<SearchResult[]> {
-    const allResults: SearchResult[] = [];
-
-    for (const query of queries) {
-      const results = await this.search(query, 3);
-      allResults.push(...results);
-    }
+    // Execute all searches in parallel for efficiency
+    const searchPromises = queries.map(query => this.search(query, 3));
+    const resultsArrays = await Promise.all(searchPromises);
+    
+    // Flatten results
+    const allResults = resultsArrays.flat();
 
     // Remove duplicates based on URL
     const uniqueResults = allResults.filter(

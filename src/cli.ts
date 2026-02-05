@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { searchCommand } from './commands/search';
 import { researchCommand } from './commands/research';
+import { parallelResearchCommand } from './commands/parallel-research';
 import { knowledgeCommand } from './commands/knowledge';
 import { initCommand } from './commands/init';
 
@@ -36,6 +37,14 @@ program
   .option('-d, --depth <number>', 'Research depth (1-5)', '3')
   .option('-s, --save', 'Save research to knowledge base', true)
   .action(researchCommand);
+
+// Parallel research command - research multiple topics efficiently
+program
+  .command('parallel <topics>')
+  .description('Research multiple topics in parallel (comma-separated)')
+  .option('-d, --depth <number>', 'Research depth (1-5)', '3')
+  .option('-s, --save', 'Save research to knowledge base', true)
+  .action(parallelResearchCommand);
 
 // Knowledge base commands
 const knowledge = program

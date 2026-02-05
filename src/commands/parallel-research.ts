@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import { ResearchAgent } from '../research/research-agent';
-import { KnowledgeBase } from '../knowledge-base/knowledge-base';
+import { ResearchAgent } from '../research/research-agent.js';
+import { KnowledgeBase } from '../knowledge-base/knowledge-base.js';
 
 interface ParallelResearchOptions {
   depth: string;

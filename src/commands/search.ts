@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import { WebSearcher } from '../research/web-searcher';
-import { KnowledgeBase } from '../knowledge-base/knowledge-base';
+import { WebSearcher } from '../research/web-searcher.js';
+import { KnowledgeBase } from '../knowledge-base/knowledge-base.js';
 
 interface SearchOptions {
   num: string;

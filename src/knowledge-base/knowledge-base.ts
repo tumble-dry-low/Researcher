@@ -2,8 +2,8 @@ import fs from 'fs-extra';
 import path from 'path';
 import matter from 'gray-matter';
 import MarkdownIt from 'markdown-it';
-import { SearchResult } from '../research/web-searcher';
-import { ResearchResult } from '../research/research-agent';
+import { SearchResult } from '../research/web-searcher.js';
+import { ResearchResult } from '../research/research-agent.js';
 
 export interface KnowledgeEntry {
   title: string;

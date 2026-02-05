@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { KnowledgeBase } from '../knowledge-base/knowledge-base';
+import { KnowledgeBase } from '../knowledge-base/knowledge-base.js';
 
 export const knowledgeCommand = {
   async list(): Promise<void> {

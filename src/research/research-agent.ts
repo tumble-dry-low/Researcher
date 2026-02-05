@@ -1,4 +1,4 @@
-import { WebSearcher, SearchResult } from './web-searcher';
+import { WebSearcher, SearchResult } from './web-searcher.js';
 
 export interface ResearchResult {
   topic: string;

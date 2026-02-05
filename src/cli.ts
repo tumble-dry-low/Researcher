@@ -2,11 +2,11 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { searchCommand } from './commands/search';
-import { researchCommand } from './commands/research';
-import { parallelResearchCommand } from './commands/parallel-research';
-import { knowledgeCommand } from './commands/knowledge';
-import { initCommand } from './commands/init';
+import { searchCommand } from './commands/search.js';
+import { researchCommand } from './commands/research.js';
+import { parallelResearchCommand } from './commands/parallel-research.js';
+import { knowledgeCommand } from './commands/knowledge.js';
+import { initCommand } from './commands/init.js';
 
 const program = new Command();
 

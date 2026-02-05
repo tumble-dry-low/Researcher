@@ -1,6 +1,6 @@
 # Researcher 🔬
 
-A deep research agent with web search capabilities and a linked knowledge base management system. Built to work seamlessly with copilot-cli.
+A deep research agent with web search capabilities and a linked knowledge base management system. Built to work seamlessly with copilot-cli and available as an MCP server.
 
 ## Features
 
@@ -11,6 +11,7 @@ A deep research agent with web search capabilities and a linked knowledge base m
 - 📇 **Smart Indexing**: Automatic index generation and search within your knowledge base
 - 🎯 **Deep Research**: Multi-level research with configurable depth
 - 🚀 **CLI-First**: Built for command-line usage and copilot integration
+- 🔌 **MCP Server**: Use as a Model Context Protocol server with Claude and other MCP clients
 
 ## Installation
 
@@ -45,6 +46,40 @@ npm link
    ```bash
    researcher knowledge list
    ```
+
+## MCP Server
+
+Researcher can also run as an MCP (Model Context Protocol) server, allowing you to use it with Claude and other MCP-compatible clients.
+
+### Quick Start with MCP
+
+1. **Build the project**:
+   ```bash
+   npm install
+   npm run build
+   ```
+
+2. **Configure your MCP client** (e.g., Claude Desktop):
+   
+   Add to your `claude_desktop_config.json`:
+   ```json
+   {
+     "mcpServers": {
+       "researcher": {
+         "command": "node",
+         "args": ["/absolute/path/to/Researcher/dist/mcp-server.js"]
+       }
+     }
+   }
+   ```
+
+3. **Use with Claude**: Ask Claude to use the researcher tools to conduct research, manage your knowledge base, and more!
+
+See [MCP_SETUP.md](./MCP_SETUP.md) for complete MCP server documentation, including:
+- Full configuration examples
+- Available tools and their parameters
+- Testing with MCP Inspector
+- Usage examples with Claude
 
 ## Commands
 

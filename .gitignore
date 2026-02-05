@@ -28,8 +28,8 @@ logs/
 *.log
 npm-debug.log*
 
-# Knowledge bases (exclude example)
-knowledge-base/
+# Knowledge bases created by users (exclude example)
+/knowledge-base/
 !knowledge-base-example/
 
 # Temporary files

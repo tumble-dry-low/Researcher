@@ -13,6 +13,47 @@ import { KnowledgeBase } from './knowledge-base/knowledge-base.js';
 import fs from 'fs-extra';
 import path from 'path';
 
+// Type interfaces for tool arguments
+interface InitializeKnowledgeBaseArgs {
+  path?: string;
+}
+
+interface SearchWebArgs {
+  query: string;
+  numResults?: number;
+}
+
+interface ConductResearchArgs {
+  topic: string;
+  depth?: number;
+  save?: boolean;
+  knowledgeBasePath?: string;
+}
+
+interface ConductParallelResearchArgs {
+  topics: string[];
+  depth?: number;
+  save?: boolean;
+  knowledgeBasePath?: string;
+}
+
+interface KnowledgeBasePathArgs {
+  knowledgeBasePath?: string;
+}
+
+interface ViewEntryArgs extends KnowledgeBasePathArgs {
+  entryName: string;
+}
+
+interface SearchKnowledgeBaseArgs extends KnowledgeBasePathArgs {
+  query: string;
+}
+
+interface LinkEntriesArgs extends KnowledgeBasePathArgs {
+  entry1: string;
+  entry2: string;
+}
+
 // Define the tools that the MCP server will expose
 const TOOLS: Tool[] = [
   {
@@ -232,7 +273,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     switch (name) {
       case 'initialize_knowledge_base': {
-        const kbPath = path.resolve((args as any).path || './knowledge-base');
+        const typedArgs = args as unknown as InitializeKnowledgeBaseArgs;
+        const kbPath = path.resolve(typedArgs.path || './knowledge-base');
         
         await fs.ensureDir(kbPath);
         await fs.ensureDir(path.join(kbPath, 'entries'));
@@ -286,8 +328,9 @@ Initialized on ${new Date().toISOString()}.
       }
 
       case 'search_web': {
+        const typedArgs = args as unknown as SearchWebArgs;
         const searcher = new WebSearcher();
-        const results = await searcher.search((args as any).query, (args as any).numResults || 5);
+        const results = await searcher.search(typedArgs.query, typedArgs.numResults || 5);
 
         return {
           content: [
@@ -300,11 +343,12 @@ Initialized on ${new Date().toISOString()}.
       }
 
       case 'conduct_research': {
+        const typedArgs = args as unknown as ConductResearchArgs;
         const agent = new ResearchAgent();
-        const research = await agent.conductResearch((args as any).topic, (args as any).depth || 3);
+        const research = await agent.conductResearch(typedArgs.topic, typedArgs.depth || 3);
 
-        if ((args as any).save !== false) {
-          const kb = new KnowledgeBase((args as any).knowledgeBasePath || './knowledge-base');
+        if (typedArgs.save !== false) {
+          const kb = new KnowledgeBase(typedArgs.knowledgeBasePath || './knowledge-base');
           await kb.saveResearch(research);
         }
 
@@ -319,14 +363,15 @@ Initialized on ${new Date().toISOString()}.
       }
 
       case 'conduct_parallel_research': {
+        const typedArgs = args as unknown as ConductParallelResearchArgs;
         const agent = new ResearchAgent();
         const results = await agent.conductParallelResearch(
-          (args as any).topics,
-          (args as any).depth || 3
+          typedArgs.topics,
+          typedArgs.depth || 3
         );
 
-        if ((args as any).save !== false) {
-          const kb = new KnowledgeBase((args as any).knowledgeBasePath || './knowledge-base');
+        if (typedArgs.save !== false) {
+          const kb = new KnowledgeBase(typedArgs.knowledgeBasePath || './knowledge-base');
           await Promise.all(results.map(research => kb.saveResearch(research)));
         }
 
@@ -341,7 +386,8 @@ Initialized on ${new Date().toISOString()}.
       }
 
       case 'list_knowledge_base_entries': {
-        const kb = new KnowledgeBase((args as any).knowledgeBasePath || './knowledge-base');
+        const typedArgs = args as unknown as KnowledgeBasePathArgs;
+        const kb = new KnowledgeBase(typedArgs.knowledgeBasePath || './knowledge-base');
         const entries = await kb.listEntries();
 
         return {
@@ -355,8 +401,9 @@ Initialized on ${new Date().toISOString()}.
       }
 
       case 'view_knowledge_base_entry': {
-        const kb = new KnowledgeBase((args as any).knowledgeBasePath || './knowledge-base');
-        const entry = await kb.getEntry((args as any).entryName);
+        const typedArgs = args as unknown as ViewEntryArgs;
+        const kb = new KnowledgeBase(typedArgs.knowledgeBasePath || './knowledge-base');
+        const entry = await kb.getEntry(typedArgs.entryName);
 
         if (!entry) {
           return {
@@ -381,8 +428,9 @@ Initialized on ${new Date().toISOString()}.
       }
 
       case 'search_knowledge_base': {
-        const kb = new KnowledgeBase((args as any).knowledgeBasePath || './knowledge-base');
-        const results = await kb.search((args as any).query);
+        const typedArgs = args as unknown as SearchKnowledgeBaseArgs;
+        const kb = new KnowledgeBase(typedArgs.knowledgeBasePath || './knowledge-base');
+        const results = await kb.search(typedArgs.query);
 
         return {
           content: [
@@ -395,21 +443,23 @@ Initialized on ${new Date().toISOString()}.
       }
 
       case 'link_knowledge_base_entries': {
-        const kb = new KnowledgeBase((args as any).knowledgeBasePath || './knowledge-base');
-        await kb.linkEntries((args as any).entry1, (args as any).entry2);
+        const typedArgs = args as unknown as LinkEntriesArgs;
+        const kb = new KnowledgeBase(typedArgs.knowledgeBasePath || './knowledge-base');
+        await kb.linkEntries(typedArgs.entry1, typedArgs.entry2);
 
         return {
           content: [
             {
               type: 'text',
-              text: `Successfully linked ${(args as any).entry1} and ${(args as any).entry2}`,
+              text: `Successfully linked ${typedArgs.entry1} and ${typedArgs.entry2}`,
             },
           ],
         };
       }
 
       case 'update_knowledge_base_index': {
-        const kb = new KnowledgeBase((args as any).knowledgeBasePath || './knowledge-base');
+        const typedArgs = args as unknown as KnowledgeBasePathArgs;
+        const kb = new KnowledgeBase(typedArgs.knowledgeBasePath || './knowledge-base');
         await kb.updateIndex();
 
         return {

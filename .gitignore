@@ -1,13 +1,3 @@
-# Dependencies
-node_modules/
-package-lock.json
-
-# Build output
-dist/
-
-# TypeScript
-*.tsbuildinfo
-
 # IDE
 .vscode/
 .idea/
@@ -19,18 +9,16 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Testing
-coverage/
-.nyc_output/
-
 # Logs
-logs/
 *.log
-npm-debug.log*
 
-# Knowledge bases created by users (exclude example)
-/knowledge-base/
-!knowledge-base-example/
+# Knowledge base entries (user-generated content)
+knowledge-base/entries/*.md
+!knowledge-base/entries/.gitkeep
+
+# Assets (user-generated)
+knowledge-base/assets/*
+!knowledge-base/assets/.gitkeep
 
 # Temporary files
 tmp/

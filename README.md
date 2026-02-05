@@ -1,350 +1,234 @@
 # Researcher 🔬
 
-A deep research agent with web search capabilities and a linked knowledge base management system. Built to work seamlessly with copilot-cli and available as an MCP server.
+A prompt-based deep research system for AI agents. No code required - just instructions for conducting hierarchical research with wiki-linked markdown files.
 
-## Features
+## Overview
 
-- 🌐 **Web Research**: Perform web searches and deep research on any topic
-- ⚡ **Parallel Execution**: Research multiple topics simultaneously for efficiency
-- 📚 **Knowledge Base**: Accumulate research in a markdown-based wiki with automatic linking
-- 🔗 **Linked Notes**: Create connections between research entries
-- 📇 **Smart Indexing**: Automatic index generation and search within your knowledge base
-- 🎯 **Deep Research**: Multi-level research with configurable depth
-- 🚀 **CLI-First**: Built for command-line usage and copilot integration
-- 🔌 **MCP Server**: Use as a Model Context Protocol server with Claude and other MCP clients
+This repository provides a methodology for AI agents (Claude, GPT, etc.) to conduct structured, hierarchical research and maintain a linked knowledge base using markdown files. The agent uses its built-in file operations and web search capabilities - no custom code needed.
 
-## Installation
+## What's Included
 
-```bash
-npm install
-npm run build
+- **This README**: Complete instructions for the research methodology
+- **knowledge-base/**: Empty directory where research results are saved
+
+## Prerequisites
+
+- An AI agent with file read/write capabilities (e.g., Claude Desktop with filesystem MCP)
+- Web search capability (built-in or via MCP server)
+
+## Research Methodology
+
+### Core Principles
+
+1. **Everything is markdown**: All research stored as `.md` files with YAML frontmatter
+2. **Wiki-style linking**: Use `[text](./filename.md)` to link between research nodes
+3. **Hierarchical tree structure**: Research questions branch into sub-questions
+4. **Source citation required**: All findings must cite sources - no sources = inadmissible
+5. **Parallel exploration**: Research multiple perspectives/positions simultaneously
+
+### File Naming Conventions
+
+```
+knowledge-base/entries/
+├── research-{topic-slug}.md              # Single topic research
+├── structured-{question-slug}.md         # Debate-style multi-perspective
+├── tree-{question}-index.md              # Tree research overview
+├── tree-{question}-node-d{N}-{slug}.md   # Individual tree nodes at depth N
 ```
 
-To install globally (optional):
-```bash
-npm link
+### Research Types
+
+#### 1. Standard Research
+
+Single topic, multiple queries, synthesized results.
+
+**Frontmatter:**
+```yaml
+---
+title: "Topic Name"
+tags: [research, topic-area]
+createdAt: "ISO-8601 timestamp"
+depth: 3
+sources: 15
+---
 ```
 
-## Quick Start
+**Structure:**
+- Introduction/Summary
+- Key Findings (numbered list)
+- Sources (with links)
+- Related Topics (wiki links to other research)
 
-1. **Initialize a knowledge base**:
-   ```bash
-   researcher init
-   ```
+#### 2. Structured Research (Debate-Style)
 
-2. **Search the web**:
-   ```bash
-   researcher search "quantum computing"
-   ```
+Multiple perspectives researched in parallel (pro/con, multiple options).
 
-3. **Conduct deep research**:
-   ```bash
-   researcher research "artificial intelligence" --depth 3
-   ```
-
-4. **View your knowledge base**:
-   ```bash
-   researcher knowledge list
-   ```
-
-## MCP Server
-
-Researcher can also run as an MCP (Model Context Protocol) server, allowing you to use it with Claude and other MCP-compatible clients.
-
-### Quick Start with MCP
-
-1. **Build the project**:
-   ```bash
-   npm install
-   npm run build
-   ```
-
-2. **Configure your MCP client** (e.g., Claude Desktop):
-   
-   Add to your `claude_desktop_config.json`:
-   ```json
-   {
-     "mcpServers": {
-       "researcher": {
-         "command": "node",
-         "args": ["/absolute/path/to/Researcher/dist/mcp-server.js"]
-       }
-     }
-   }
-   ```
-
-3. **Use with Claude**: Ask Claude to use the researcher tools to conduct research, manage your knowledge base, and more!
-
-See [MCP_SETUP.md](./MCP_SETUP.md) for complete MCP server documentation, including:
-- Full configuration examples
-- Available tools and their parameters
-- Testing with MCP Inspector
-- Usage examples with Claude
-
-## Commands
-
-### Initialize Knowledge Base
-
-```bash
-researcher init [options]
+**Frontmatter:**
+```yaml
+---
+title: "Structured Research: Question"
+tags: [structured-research, debate, analysis]
+question: "Should we...?"
+positionCount: 6
+createdAt: "ISO-8601 timestamp"
+---
 ```
 
-Creates a new knowledge base in the current directory.
+**Structure:**
+- Context/Question
+- Summary
+- Positions (one section per position)
+  - Each position: stance (pro/con), strength (strong/moderate/weak), arguments with sources
+- Inadmissible positions (those without sources) excluded
 
-**Options:**
-- `-p, --path <path>` - Path to initialize knowledge base (default: `./knowledge-base`)
+#### 3. Tree Research (Hierarchical)
 
-**Example:**
-```bash
-researcher init --path ./my-research
+Recursive question exploration with automatic branching and pruning.
+
+**Index File** (`tree-{question}-index.md`):
+```yaml
+---
+title: "Tree Research Index: Root Question"
+tags: [tree-research, hierarchical, analysis, index]
+totalNodes: 5
+maxDepthReached: 2
+conclusiveNodes: 1
+openQuestionsCount: 3
+createdAt: "ISO-8601 timestamp"
+---
 ```
 
-### Web Search
-
-```bash
-researcher search <query> [options]
+**Node File** (`tree-{question}-node-d{N}-{slug}.md`):
+```yaml
+---
+title: "Node Question"
+tags: [tree-research-node, depth-N, status]
+depth: N
+status: completed|max_depth|conclusive
+conclusive: false
+parentChain: ["Parent Q1", "Parent Q2"]
+createdAt: "ISO-8601 timestamp"
+---
 ```
 
-Perform a web search on a topic.
+**Each Node Contains:**
+- Previous Questions and Branches (parent chain for context)
+- Metadata (depth, status, conclusive flag)
+- Research results (all positions with sources)
+- Wiki links to child nodes (if any)
+- Open questions (at max depth)
 
-**Options:**
-- `-n, --num <number>` - Number of results to return (default: 5)
-- `-s, --save` - Save results to knowledge base
+### Tree Research Algorithm
 
-**Example:**
-```bash
-researcher search "machine learning" --num 10 --save
+1. **Start at root**: Research initial question with all positions in parallel
+2. **Evaluate results**:
+   - If conclusive (1 strong position, others weak) → mark correct, don't branch
+   - If non-conclusive → generate follow-up questions from moderate findings
+3. **Branch recursively**: Create child nodes for each follow-up question
+4. **Respect max depth**: At max depth, list open questions instead of branching
+5. **Save bottom-up**: Create leaf nodes first, then parents (so wiki links work)
+6. **Full context**: Each child node receives complete parent question chain
+
+### Branch Pruning Logic
+
+A node is **conclusive** when:
+- One position is "strong" (5+ sources, 5+ arguments)
+- All other positions are "weak" (< 3 sources or < 3 arguments)
+
+When conclusive:
+- Mark the correct position
+- Don't create child branches
+- Other alternatives "merit no further investigation"
+
+### Position Strength Assessment
+
+**Strong**: 5+ sources AND 5+ arguments
+**Moderate**: 3-4 sources AND 3-4 arguments  
+**Weak**: < 3 sources OR < 3 arguments
+
+### Wiki Linking Best Practices
+
+1. **Link between related research**: `[Related Topic](./research-related-topic.md)`
+2. **Parent to children**: `[Follow-up Question](./tree-...-node-d2-follow-up.md)`
+3. **Index to nodes**: Tree index links to all nodes for navigation
+4. **Bidirectional**: When linking A→B, also add B→A
+
+### Query Generation by Stance
+
+**Pro stance**: Use "benefits", "advantages", "why [option]", "evidence for"
+**Con stance**: Use "drawbacks", "disadvantages", "problems with", "risks", "criticism"
+**Analysis**: Use "analysis", "comparison", "evaluation", "pros and cons"
+
+## Usage Examples
+
+### Example 1: Yes/No Question Tree
+
+```
+Root: "Should we adopt microservices?"
+├─ If non-conclusive, branch to:
+   ├─ "What are the deployment challenges?" (Yes/No)
+   ├─ "Is our team size adequate?" (Yes/No)
+   └─ "What about data consistency?" (Yes/No)
 ```
 
-### Deep Research
+Each node saved as separate file with parent context.
 
-```bash
-researcher research <topic> [options]
-```
+### Example 2: Multi-Option Debate
 
-Conduct comprehensive research on a topic with multiple search queries and synthesis.
+Question: "Which database: PostgreSQL, MongoDB, or MySQL?"
+- Creates 6 positions (pro/con for each option)
+- Each researched in parallel
+- Results in one structured markdown file
 
-**Options:**
-- `-d, --depth <number>` - Research depth from 1-5 (default: 3)
-- `-s, --save` - Save research to knowledge base (default: true)
+### Example 3: Parallel Research
 
-**Example:**
-```bash
-researcher research "neural networks" --depth 5
-```
+Research "AI, ML, DL" as 3 separate topics in parallel.
+- Each topic → separate markdown file
+- Only final results kept (memory efficient)
 
-### Parallel Research
+## File Structure Example
 
-```bash
-researcher parallel <topics> [options]
-```
-
-Research multiple topics in parallel for maximum efficiency. Uses parallel subagent spawning and keeps only the results (not full context) for optimal performance.
-
-**Options:**
-- `-d, --depth <number>` - Research depth from 1-5 (default: 3)
-- `-s, --save` - Save research to knowledge base (default: true)
-
-**Topics Format:**
-- Comma-separated: `"topic1,topic2,topic3"`
-
-**Example:**
-```bash
-# Research multiple topics simultaneously
-researcher parallel "quantum computing,machine learning,neural networks" --depth 3
-
-# All results are saved efficiently without keeping full context
-```
-
-**Benefits:**
-- ⚡ Faster execution through parallel processing
-- 💾 Memory efficient - only final results are retained
-- 🎯 Perfect for batch research tasks
-
-### Knowledge Base Management
-
-#### List Entries
-
-```bash
-researcher knowledge list
-# or
-researcher kb list
-```
-
-List all entries in your knowledge base.
-
-#### View Entry
-
-```bash
-researcher knowledge view <entry>
-# or
-researcher kb view <entry>
-```
-
-View a specific knowledge base entry.
-
-**Example:**
-```bash
-researcher kb view research-quantum-computing
-```
-
-#### Link Entries
-
-```bash
-researcher knowledge link <entry1> <entry2>
-# or
-researcher kb link <entry1> <entry2>
-```
-
-Create a bidirectional link between two knowledge base entries.
-
-**Example:**
-```bash
-researcher kb link research-ai research-machine-learning
-```
-
-#### Update Index
-
-```bash
-researcher knowledge index
-# or
-researcher kb index
-```
-
-Generate or update the knowledge base index with all entries organized by topic.
-
-#### Search Knowledge Base
-
-```bash
-researcher knowledge search <query>
-# or
-researcher kb search <query>
-```
-
-Search within your knowledge base entries.
-
-**Example:**
-```bash
-researcher kb search "neural networks"
-```
-
-## Knowledge Base Structure
-
-When you initialize a knowledge base, it creates the following structure:
+After tree research on "Should we use cloud storage?":
 
 ```
 knowledge-base/
-├── README.md           # Introduction and usage guide
-├── config.json         # Configuration file
-├── index.md           # Auto-generated index of all entries
-├── entries/           # Markdown files for each research entry
-│   ├── research-topic-1.md
-│   ├── research-topic-2.md
-│   └── search-query.md
-└── assets/            # Images, PDFs, and other resources
+├── entries/
+│   ├── tree-should-we-use-cloud-storage-index.md
+│   ├── tree-should-we-use-cloud-storage-node-d0-should-we-use-cloud-storage.md
+│   ├── tree-should-we-use-cloud-storage-node-d1-what-are-security-concerns.md
+│   ├── tree-should-we-use-cloud-storage-node-d1-cost-analysis-needed.md
+│   └── tree-should-we-use-cloud-storage-node-d2-encryption-standards.md
+└── assets/
 ```
 
-### Entry Format
+## Agent Instructions
 
-Each entry is a markdown file with YAML frontmatter:
+When asked to conduct research:
 
-```markdown
----
-title: "Quantum Computing"
-tags: ["research", "quantum", "computing"]
-createdAt: "2024-01-01T00:00:00.000Z"
----
+1. **Choose research type** based on the question
+2. **Conduct web searches** for each position/query
+3. **Require sources**: Exclude any findings without citations
+4. **Generate markdown** following the format conventions above
+5. **Use wiki links** to connect related research
+6. **Save files** to `knowledge-base/entries/`
+7. **For trees**: Save leaf nodes first (bottom-up)
 
-# Quantum Computing
+## Configuration
 
-## Summary
-...
+No configuration needed. The agent follows these instructions directly.
 
-## Key Findings
-1. ...
-2. ...
+## MCP Servers (Optional)
 
-## Sources
-1. [Title](url)
-```
+If available, these enhance the experience:
+- `@modelcontextprotocol/server-filesystem` - for file operations
+- Any web search MCP - for research capabilities
 
-## Integration with Copilot CLI
-
-This tool is designed to work seamlessly with copilot-cli. You can use it in your copilot workflows:
-
-```bash
-# Use researcher commands in your copilot session
-researcher init
-researcher research "topic" --depth 3
-researcher kb list
-```
-
-## Future Enhancements
-
-The scaffolding supports future additions:
-
-- 🔌 **Vector Database Integration**: Add semantic search capabilities
-- 🤖 **LLM Integration**: Enhanced summarization and synthesis
-- 🌐 **Multiple Search APIs**: Google, Bing, DuckDuckGo integration
-- 📊 **Visualization**: Knowledge graph visualization
-- 🔄 **Sync**: Cloud synchronization of knowledge bases
-- 📱 **Web UI**: Browser-based interface for knowledge base
-
-## Development
-
-### Build
-
-```bash
-npm run build
-```
-
-### Development Mode
-
-```bash
-npm run dev -- <command>
-```
-
-### Clean Build
-
-```bash
-npm run clean
-npm run build
-```
-
-## Architecture
-
-### Components
-
-1. **CLI Layer** (`src/cli.ts`)
-   - Command-line interface using Commander.js
-   - Entry point for all operations
-
-2. **Commands** (`src/commands/`)
-   - Individual command implementations
-   - User interaction and output formatting
-
-3. **Research Engine** (`src/research/`)
-   - `web-searcher.ts`: Web search capabilities (scaffold for API integration)
-   - `research-agent.ts`: Deep research orchestration and synthesis
-
-4. **Knowledge Base** (`src/knowledge-base/`)
-   - `knowledge-base.ts`: Markdown file management, linking, indexing
-
-### Extension Points
-
-- **Web Searcher**: Integrate real search APIs (Google, Bing, etc.)
-- **Research Agent**: Add LLM-based analysis and summarization
-- **Knowledge Base**: Add vector database for semantic search
+But they're optional - use Claude's built-in capabilities if available.
 
 ## License
 
-ISC
+MIT
 
 ## Contributing
 
-Contributions welcome! This is a scaffold meant to be extended with:
-- Real web search API integration
-- LLM-based content analysis
-- Vector database support
-- Additional export formats
-- Knowledge graph visualization
+This is a methodology, not code. Contributions welcome to improve the instructions or add examples.

@@ -9,6 +9,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { ResearchAgent } from './research/research-agent.js';
 import { StructuredResearchAgent, ResearchPosition } from './research/structured-research-agent.js';
+import { TreeResearchAgent } from './research/tree-research-agent.js';
 import { WebSearcher } from './research/web-searcher.js';
 import { KnowledgeBase } from './knowledge-base/knowledge-base.js';
 import fs from 'fs-extra';
@@ -43,6 +44,16 @@ interface ConductStructuredResearchArgs {
   context?: string;
   positions: ResearchPosition[];
   depth?: number;
+  save?: boolean;
+  knowledgeBasePath?: string;
+}
+
+interface ConductTreeResearchArgs {
+  question: string;
+  context?: string;
+  positions: ResearchPosition[];
+  maxDepth?: number;
+  researchDepth?: number;
   save?: boolean;
   knowledgeBasePath?: string;
 }
@@ -201,6 +212,68 @@ const TOOLS: Tool[] = [
         depth: {
           type: 'number',
           description: 'Research depth (1-5)',
+          default: 3,
+        },
+        save: {
+          type: 'boolean',
+          description: 'Whether to save results to knowledge base',
+          default: true,
+        },
+        knowledgeBasePath: {
+          type: 'string',
+          description: 'Path to knowledge base',
+          default: './knowledge-base',
+        },
+      },
+      required: ['question', 'positions'],
+    },
+  },
+  {
+    name: 'conduct_tree_research',
+    description: 'Conduct hierarchical tree-based research. Each node is a question with alternatives explored in parallel. Branches are pruned when one answer is conclusive. At max depth, open questions and potential answers are listed. All results logged to knowledge base.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        question: {
+          type: 'string',
+          description: 'The root question to research',
+        },
+        context: {
+          type: 'string',
+          description: 'Initial context for the research tree',
+          default: '',
+        },
+        positions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              position: {
+                type: 'string',
+                description: 'The position or perspective',
+              },
+              stance: {
+                type: 'string',
+                enum: ['pro', 'con', 'neutral', 'analysis'],
+                description: 'The stance of this position',
+              },
+              description: {
+                type: 'string',
+                description: 'Description of what this position represents',
+              },
+            },
+            required: ['position', 'stance', 'description'],
+          },
+          description: 'Initial positions to explore at the root node',
+        },
+        maxDepth: {
+          type: 'number',
+          description: 'Maximum depth of the research tree',
+          default: 3,
+        },
+        researchDepth: {
+          type: 'number',
+          description: 'Research depth per node (1-5)',
           default: 3,
         },
         save: {
@@ -465,6 +538,33 @@ Initialized on ${new Date().toISOString()}.
         if (typedArgs.save !== false) {
           const kb = new KnowledgeBase(typedArgs.knowledgeBasePath || './knowledge-base');
           await kb.saveStructuredResearch(result);
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'conduct_tree_research': {
+        const typedArgs = args as unknown as ConductTreeResearchArgs;
+        const agent = new TreeResearchAgent();
+        const result = await agent.conductTreeResearch(
+          typedArgs.question,
+          typedArgs.context || '',
+          typedArgs.positions,
+          typedArgs.maxDepth || 3,
+          typedArgs.researchDepth || 3
+        );
+
+        if (typedArgs.save !== false) {
+          const kb = new KnowledgeBase(typedArgs.knowledgeBasePath || './knowledge-base');
+          const summary = agent.generateTreeSummary(result);
+          await kb.saveTreeResearch(result, summary);
         }
 
         return {

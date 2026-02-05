@@ -8,6 +8,7 @@ import {
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { ResearchAgent } from './research/research-agent.js';
+import { StructuredResearchAgent, ResearchPosition } from './research/structured-research-agent.js';
 import { WebSearcher } from './research/web-searcher.js';
 import { KnowledgeBase } from './knowledge-base/knowledge-base.js';
 import fs from 'fs-extra';
@@ -32,6 +33,15 @@ interface ConductResearchArgs {
 
 interface ConductParallelResearchArgs {
   topics: string[];
+  depth?: number;
+  save?: boolean;
+  knowledgeBasePath?: string;
+}
+
+interface ConductStructuredResearchArgs {
+  question: string;
+  context?: string;
+  positions: ResearchPosition[];
   depth?: number;
   save?: boolean;
   knowledgeBasePath?: string;
@@ -148,6 +158,63 @@ const TOOLS: Tool[] = [
         },
       },
       required: ['topics'],
+    },
+  },
+  {
+    name: 'conduct_structured_research',
+    description: 'Conduct structured research with multiple perspectives on a question. Each position is researched in parallel to make the strongest case with citations. Responses without sources are inadmissible.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        question: {
+          type: 'string',
+          description: 'The question or topic to research',
+        },
+        context: {
+          type: 'string',
+          description: 'Shared context for all positions',
+          default: '',
+        },
+        positions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              position: {
+                type: 'string',
+                description: 'The position or perspective',
+              },
+              stance: {
+                type: 'string',
+                enum: ['pro', 'con', 'neutral', 'analysis'],
+                description: 'The stance of this position',
+              },
+              description: {
+                type: 'string',
+                description: 'Description of what this position represents',
+              },
+            },
+            required: ['position', 'stance', 'description'],
+          },
+          description: 'Array of positions to research. Use helper methods: createYesNoPositions, createProConPositions, createMultiOptionPositions',
+        },
+        depth: {
+          type: 'number',
+          description: 'Research depth (1-5)',
+          default: 3,
+        },
+        save: {
+          type: 'boolean',
+          description: 'Whether to save results to knowledge base',
+          default: true,
+        },
+        knowledgeBasePath: {
+          type: 'string',
+          description: 'Path to knowledge base',
+          default: './knowledge-base',
+        },
+      },
+      required: ['question', 'positions'],
     },
   },
   {
@@ -380,6 +447,31 @@ Initialized on ${new Date().toISOString()}.
             {
               type: 'text',
               text: JSON.stringify(results, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'conduct_structured_research': {
+        const typedArgs = args as unknown as ConductStructuredResearchArgs;
+        const agent = new StructuredResearchAgent();
+        const result = await agent.conductStructuredResearch(
+          typedArgs.question,
+          typedArgs.context || '',
+          typedArgs.positions,
+          typedArgs.depth || 3
+        );
+
+        if (typedArgs.save !== false) {
+          const kb = new KnowledgeBase(typedArgs.knowledgeBasePath || './knowledge-base');
+          await kb.saveStructuredResearch(result);
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
             },
           ],
         };

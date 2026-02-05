@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import { searchCommand } from './commands/search.js';
 import { researchCommand } from './commands/research.js';
 import { parallelResearchCommand } from './commands/parallel-research.js';
+import { structuredResearchCommand } from './commands/structured-research.js';
 import { knowledgeCommand } from './commands/knowledge.js';
 import { initCommand } from './commands/init.js';
 
@@ -45,6 +46,16 @@ program
   .option('-d, --depth <number>', 'Research depth (1-5)', '3')
   .option('-s, --save', 'Save research to knowledge base', true)
   .action(parallelResearchCommand);
+
+// Structured research command - research with multiple perspectives
+program
+  .command('structured <question>')
+  .description('Conduct structured research with multiple perspectives (pro/con analysis, debate)')
+  .option('-d, --depth <number>', 'Research depth (1-5)', '3')
+  .option('-s, --save', 'Save research to knowledge base', true)
+  .option('-t, --type <type>', 'Type: yesno, options, or custom', 'yesno')
+  .option('-o, --options <options>', 'Options for research (comma-separated for options type)')
+  .action(structuredResearchCommand);
 
 // Knowledge base commands
 const knowledge = program

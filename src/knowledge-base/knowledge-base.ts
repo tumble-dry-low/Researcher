@@ -4,6 +4,7 @@ import matter from 'gray-matter';
 import MarkdownIt from 'markdown-it';
 import { SearchResult } from '../research/web-searcher.js';
 import { ResearchResult } from '../research/research-agent.js';
+import { StructuredResearchResult } from '../research/structured-research-agent.js';
 
 export interface KnowledgeEntry {
   title: string;
@@ -193,6 +194,65 @@ export class KnowledgeBase {
       });
       content += '\n';
     }
+
+    const fileContent = matter.stringify(content, frontmatter);
+    await fs.writeFile(filePath, fileContent);
+  }
+
+  /**
+   * Save structured research results to knowledge base
+   */
+  async saveStructuredResearch(research: StructuredResearchResult): Promise<void> {
+    await this.ensureExists();
+
+    const slug = this.slugify(research.question);
+    const fileName = `structured-${slug}.md`;
+    const filePath = path.join(this.entriesPath, fileName);
+
+    const frontmatter = {
+      title: `Structured Research: ${research.question}`,
+      tags: ['structured-research', 'debate', 'analysis'],
+      question: research.question,
+      positionCount: research.positions.length,
+      createdAt: research.createdAt,
+    };
+
+    let content = `# Structured Research: ${research.question}\n\n`;
+    
+    if (research.context) {
+      content += `## Context\n\n${research.context}\n\n`;
+    }
+
+    content += `## Summary\n\n${research.summary}\n\n`;
+
+    content += `## Positions (${research.positions.length})\n\n`;
+
+    research.positions.forEach((position, index) => {
+      content += `### ${index + 1}. ${position.position} (${position.stance.toUpperCase()})\n\n`;
+      content += `**Strength**: ${position.strength}\n\n`;
+      content += `**Sources**: ${position.sources.length}\n\n`;
+
+      if (position.arguments.length > 0) {
+        content += `#### Arguments\n\n`;
+        position.arguments.forEach((arg, i) => {
+          content += `${i + 1}. ${arg}\n`;
+        });
+        content += '\n';
+      }
+
+      if (position.sources.length > 0) {
+        content += `#### Sources\n\n`;
+        position.sources.forEach((source, i) => {
+          content += `${i + 1}. [${source.title}](${source.url})\n`;
+          if (source.snippet) {
+            content += `   - ${source.snippet}\n`;
+          }
+        });
+        content += '\n';
+      }
+
+      content += `---\n\n`;
+    });
 
     const fileContent = matter.stringify(content, frontmatter);
     await fs.writeFile(filePath, fileContent);

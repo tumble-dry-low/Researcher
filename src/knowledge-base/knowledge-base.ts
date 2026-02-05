@@ -261,30 +261,191 @@ export class KnowledgeBase {
 
   /**
    * Save tree research results to knowledge base
+   * Each node is saved as a separate markdown file with wiki-style links
+   * Files are created iteratively from leaf nodes up to root
    */
   async saveTreeResearch(research: TreeResearchResult, summary: string): Promise<void> {
     await this.ensureExists();
 
-    const slug = this.slugify(research.rootQuestion);
-    const fileName = `tree-${slug}.md`;
-    const filePath = path.join(this.entriesPath, fileName);
+    const rootSlug = this.slugify(research.rootQuestion);
+    const nodeFiles: string[] = [];
 
-    const frontmatter = {
-      title: `Tree Research: ${research.rootQuestion}`,
-      tags: ['tree-research', 'hierarchical', 'analysis'],
+    // Save nodes iteratively from leaves to root (bottom-up)
+    await this.saveNodeIteratively(research.tree, rootSlug, nodeFiles);
+
+    // Create index file for the tree
+    const indexFileName = `tree-${rootSlug}-index.md`;
+    const indexFilePath = path.join(this.entriesPath, indexFileName);
+
+    const indexFrontmatter = {
+      title: `Tree Research Index: ${research.rootQuestion}`,
+      tags: ['tree-research', 'hierarchical', 'analysis', 'index'],
       rootQuestion: research.rootQuestion,
       totalNodes: research.totalNodes,
       maxDepthReached: research.maxDepthReached,
       conclusiveNodes: research.conclusiveNodes,
       openQuestionsCount: research.openQuestions.length,
       createdAt: research.createdAt,
+      nodeFiles,
     };
 
-    // Use the generated summary
-    const content = summary;
+    let indexContent = `# Tree Research: ${research.rootQuestion}\n\n`;
+    indexContent += `## Statistics\n\n`;
+    indexContent += `- Total nodes explored: ${research.totalNodes}\n`;
+    indexContent += `- Maximum depth reached: ${research.maxDepthReached}\n`;
+    indexContent += `- Conclusive nodes: ${research.conclusiveNodes}\n`;
+    indexContent += `- Open questions: ${research.openQuestions.length}\n\n`;
+
+    indexContent += `## Root Question\n\n`;
+    indexContent += `[${research.tree.question}](./${research.tree.fileName})\n\n`;
+
+    if (research.openQuestions.length > 0) {
+      indexContent += `## All Open Questions\n\n`;
+      research.openQuestions.forEach((q, i) => {
+        indexContent += `${i + 1}. ${q}\n`;
+      });
+      indexContent += '\n';
+    }
+
+    indexContent += `## All Nodes\n\n`;
+    nodeFiles.forEach(file => {
+      indexContent += `- [${file}](./${file})\n`;
+    });
+
+    const indexFileContent = matter.stringify(indexContent, indexFrontmatter);
+    await fs.writeFile(indexFilePath, indexFileContent);
+  }
+
+  /**
+   * Save a single node and its children iteratively (bottom-up)
+   */
+  private async saveNodeIteratively(
+    node: any,
+    treeSlug: string,
+    nodeFiles: string[]
+  ): Promise<void> {
+    // First, recursively save children (bottom-up)
+    if (node.children && node.children.length > 0) {
+      for (const child of node.children) {
+        await this.saveNodeIteratively(child, treeSlug, nodeFiles);
+      }
+    }
+
+    // Then save this node
+    const nodeSlug = this.slugify(node.question);
+    const fileName = `tree-${treeSlug}-node-d${node.depth}-${nodeSlug}.md`;
+    const filePath = path.join(this.entriesPath, fileName);
+
+    node.fileName = fileName;
+    nodeFiles.push(fileName);
+
+    const frontmatter: any = {
+      title: node.question,
+      tags: ['tree-research-node', `depth-${node.depth}`, node.status],
+      depth: node.depth,
+      status: node.status,
+      conclusive: node.conclusive || false,
+      parentChain: node.parentChain || [],
+      createdAt: node.result?.createdAt || new Date().toISOString(),
+    };
+
+    // Only add correctPosition if it's defined
+    if (node.correctPosition) {
+      frontmatter.correctPosition = node.correctPosition;
+    }
+
+    let content = `# ${node.question}\n\n`;
+
+    // Show parent chain for context
+    if (node.parentChain && node.parentChain.length > 0) {
+      content += `## Previous Questions and Branches\n\n`;
+      content += `This research follows from:\n\n`;
+      node.parentChain.forEach((q: string, i: number) => {
+        content += `${i + 1}. ${q}\n`;
+      });
+      content += '\n';
+    }
+
+    content += `## Metadata\n\n`;
+    content += `- **Depth**: ${node.depth}\n`;
+    content += `- **Status**: ${node.status}\n`;
+    if (node.conclusive) {
+      content += `- **Conclusive**: ✓ Yes\n`;
+      content += `- **Correct Position**: ${node.correctPosition}\n`;
+    } else {
+      content += `- **Conclusive**: No\n`;
+    }
+    content += '\n';
+
+    // Context
+    if (node.context) {
+      content += `## Context\n\n${node.context}\n\n`;
+    }
+
+    // Research results
+    if (node.result) {
+      content += `## Research Results\n\n`;
+      content += `${node.result.summary}\n\n`;
+
+      content += `### Positions (${node.result.positions.length})\n\n`;
+
+      node.result.positions.forEach((position: any, index: number) => {
+        content += `#### ${index + 1}. ${position.position} (${position.stance.toUpperCase()}) - ${position.strength}\n\n`;
+        content += `**Sources**: ${position.sources.length}\n\n`;
+
+        if (position.arguments.length > 0) {
+          content += `**Arguments**:\n`;
+          position.arguments.forEach((arg: string, i: number) => {
+            content += `${i + 1}. ${arg}\n`;
+          });
+          content += '\n';
+        }
+
+        if (position.sources.length > 0) {
+          content += `**Sources**:\n`;
+          position.sources.forEach((source: any, i: number) => {
+            content += `${i + 1}. [${source.title}](${source.url})\n`;
+            if (source.snippet) {
+              content += `   - ${source.snippet}\n`;
+            }
+          });
+          content += '\n';
+        }
+      });
+    }
+
+    // Open questions at max depth
+    if (node.status === 'max_depth') {
+      if (node.openQuestions && node.openQuestions.length > 0) {
+        content += `## Open Questions (Max Depth Reached)\n\n`;
+        node.openQuestions.forEach((q: string, i: number) => {
+          content += `${i + 1}. ${q}\n`;
+        });
+        content += '\n';
+      }
+
+      if (node.potentialAnswers && node.potentialAnswers.length > 0) {
+        content += `## Potential Answers\n\n`;
+        node.potentialAnswers.forEach((a: string, i: number) => {
+          content += `${i + 1}. ${a}\n`;
+        });
+        content += '\n';
+      }
+    }
+
+    // Child nodes (wiki links)
+    if (node.children && node.children.length > 0) {
+      content += `## Follow-up Research (${node.children.length} branches)\n\n`;
+      node.children.forEach((child: any, i: number) => {
+        content += `${i + 1}. [${child.question}](./${child.fileName})\n`;
+      });
+      content += '\n';
+    }
 
     const fileContent = matter.stringify(content, frontmatter);
     await fs.writeFile(filePath, fileContent);
+
+    console.log(`[KnowledgeBase] Saved node: ${fileName}`);
   }
 
   /**

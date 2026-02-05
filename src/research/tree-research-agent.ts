@@ -16,6 +16,8 @@ export interface ResearchNode {
   correctPosition?: string; // The position determined to be correct
   openQuestions?: string[]; // Open questions at max depth or unresolved
   potentialAnswers?: string[]; // Potential answers for open questions
+  fileName?: string; // Markdown filename for this node
+  parentChain?: string[]; // Array of parent questions leading to this node
 }
 
 /**
@@ -93,10 +95,16 @@ export class TreeResearchAgent {
   /**
    * Explore a node in the research tree
    */
-  private async exploreNode(node: ResearchNode, researchDepth: number): Promise<void> {
+  private async exploreNode(node: ResearchNode, researchDepth: number, parentChain: string[] = []): Promise<void> {
     console.log(`[TreeResearchAgent] Exploring node at depth ${node.depth}: "${node.question}"`);
 
     node.status = 'researching';
+    node.parentChain = parentChain;
+
+    // Build full context from parent chain
+    if (parentChain.length > 0) {
+      node.context = `Previous questions and branches:\n${parentChain.map((q, i) => `${i + 1}. ${q}`).join('\n')}\n\nCurrent context: ${node.context}`;
+    }
 
     // Check if we've reached max depth
     if (node.depth >= node.maxDepth) {
@@ -135,18 +143,21 @@ export class TreeResearchAgent {
 
       node.children = [];
 
+      // Build parent chain for children
+      const childParentChain = [...parentChain, node.question];
+
       // Explore follow-up questions in parallel
       const childPromises = analysis.followUpQuestions.map(async (followUp) => {
         const childNode: ResearchNode = {
           question: followUp.question,
-          context: `${node.context}\n\nPrevious research: ${node.question}`,
+          context: node.context,
           depth: node.depth + 1,
           maxDepth: node.maxDepth,
           positions: followUp.positions,
           status: 'pending',
         };
 
-        await this.exploreNode(childNode, researchDepth);
+        await this.exploreNode(childNode, researchDepth, childParentChain);
         return childNode;
       });
 

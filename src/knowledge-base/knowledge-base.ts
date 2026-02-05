@@ -5,6 +5,7 @@ import MarkdownIt from 'markdown-it';
 import { SearchResult } from '../research/web-searcher.js';
 import { ResearchResult } from '../research/research-agent.js';
 import { StructuredResearchResult } from '../research/structured-research-agent.js';
+import { TreeResearchResult } from '../research/tree-research-agent.js';
 
 export interface KnowledgeEntry {
   title: string;
@@ -253,6 +254,34 @@ export class KnowledgeBase {
 
       content += `---\n\n`;
     });
+
+    const fileContent = matter.stringify(content, frontmatter);
+    await fs.writeFile(filePath, fileContent);
+  }
+
+  /**
+   * Save tree research results to knowledge base
+   */
+  async saveTreeResearch(research: TreeResearchResult, summary: string): Promise<void> {
+    await this.ensureExists();
+
+    const slug = this.slugify(research.rootQuestion);
+    const fileName = `tree-${slug}.md`;
+    const filePath = path.join(this.entriesPath, fileName);
+
+    const frontmatter = {
+      title: `Tree Research: ${research.rootQuestion}`,
+      tags: ['tree-research', 'hierarchical', 'analysis'],
+      rootQuestion: research.rootQuestion,
+      totalNodes: research.totalNodes,
+      maxDepthReached: research.maxDepthReached,
+      conclusiveNodes: research.conclusiveNodes,
+      openQuestionsCount: research.openQuestions.length,
+      createdAt: research.createdAt,
+    };
+
+    // Use the generated summary
+    const content = summary;
 
     const fileContent = matter.stringify(content, frontmatter);
     await fs.writeFile(filePath, fileContent);

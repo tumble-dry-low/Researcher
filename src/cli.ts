@@ -6,6 +6,7 @@ import { searchCommand } from './commands/search.js';
 import { researchCommand } from './commands/research.js';
 import { parallelResearchCommand } from './commands/parallel-research.js';
 import { structuredResearchCommand } from './commands/structured-research.js';
+import { treeResearchCommand } from './commands/tree-research.js';
 import { knowledgeCommand } from './commands/knowledge.js';
 import { initCommand } from './commands/init.js';
 
@@ -56,6 +57,17 @@ program
   .option('-t, --type <type>', 'Type: yesno, options, or custom', 'yesno')
   .option('-o, --options <options>', 'Options for research (comma-separated for options type)')
   .action(structuredResearchCommand);
+
+// Tree research command - hierarchical research following question branches
+program
+  .command('tree <question>')
+  .description('Conduct tree-based hierarchical research, exploring branches until conclusive or max depth')
+  .option('-d, --depth <number>', 'Research depth per node (1-5)', '3')
+  .option('-m, --max-depth <number>', 'Maximum tree depth', '3')
+  .option('-s, --save', 'Save research to knowledge base', true)
+  .option('-t, --type <type>', 'Initial position type: yesno, options, or custom', 'yesno')
+  .option('-o, --options <options>', 'Options for initial positions')
+  .action(treeResearchCommand);
 
 // Knowledge base commands
 const knowledge = program

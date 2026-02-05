@@ -13,8 +13,8 @@ export async function parallelResearchCommand(
 ): Promise<void> {
   const depth = parseInt(options.depth, 10);
   
-  // Parse topics - support comma-separated or space-separated
-  const topicList = topics.split(/[,\n]+/).map(t => t.trim()).filter(t => t.length > 0);
+  // Parse topics - support comma-separated
+  const topicList = topics.split(',').map(t => t.trim()).filter(t => t.length > 0);
 
   if (topicList.length === 0) {
     console.error(chalk.red('✗ No topics provided'));

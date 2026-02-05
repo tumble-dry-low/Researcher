@@ -55,7 +55,8 @@ export class ResearchAgent {
 
   /**
    * Conduct research on multiple topics in parallel
-   * Returns only the results, not the full context for efficiency
+   * Executes all research operations simultaneously for efficiency
+   * Returns complete results without maintaining intermediate agent state
    * @param topics - Array of topics to research
    * @param depth - Research depth (1-5)
    * @returns Array of research results

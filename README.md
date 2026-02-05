@@ -112,7 +112,6 @@ Research multiple topics in parallel for maximum efficiency. Uses parallel subag
 
 **Topics Format:**
 - Comma-separated: `"topic1,topic2,topic3"`
-- Newline-separated (in quotes)
 
 **Example:**
 ```bash

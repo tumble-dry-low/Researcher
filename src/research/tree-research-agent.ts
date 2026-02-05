@@ -103,7 +103,8 @@ export class TreeResearchAgent {
 
     // Build full context from parent chain
     if (parentChain.length > 0) {
-      node.context = `Previous questions and branches:\n${parentChain.map((q, i) => `${i + 1}. ${q}`).join('\n')}\n\nCurrent context: ${node.context}`;
+      const currentContext = node.context || '';
+      node.context = `Previous questions and branches:\n${parentChain.map((q, i) => `${i + 1}. ${q}`).join('\n')}\n\nCurrent context: ${currentContext}`;
     }
 
     // Check if we've reached max depth

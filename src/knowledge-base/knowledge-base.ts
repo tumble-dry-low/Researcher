@@ -5,7 +5,7 @@ import MarkdownIt from 'markdown-it';
 import { SearchResult } from '../research/web-searcher.js';
 import { ResearchResult } from '../research/research-agent.js';
 import { StructuredResearchResult } from '../research/structured-research-agent.js';
-import { TreeResearchResult } from '../research/tree-research-agent.js';
+import { TreeResearchResult, ResearchNode } from '../research/tree-research-agent.js';
 
 export interface KnowledgeEntry {
   title: string;
@@ -320,7 +320,7 @@ export class KnowledgeBase {
    * Save a single node and its children iteratively (bottom-up)
    */
   private async saveNodeIteratively(
-    node: any,
+    node: ResearchNode,
     treeSlug: string,
     nodeFiles: string[]
   ): Promise<void> {
@@ -332,7 +332,13 @@ export class KnowledgeBase {
     }
 
     // Then save this node
-    const nodeSlug = this.slugify(node.question);
+    let nodeSlug = this.slugify(node.question);
+    // Limit slug length to prevent filesystem issues
+    const MAX_SLUG_LENGTH = 100;
+    if (nodeSlug.length > MAX_SLUG_LENGTH) {
+      nodeSlug = nodeSlug.substring(0, MAX_SLUG_LENGTH);
+    }
+    
     const fileName = `tree-${treeSlug}-node-d${node.depth}-${nodeSlug}.md`;
     const filePath = path.join(this.entriesPath, fileName);
 

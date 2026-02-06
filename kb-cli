@@ -95,6 +95,33 @@ def main():
             results = kb.search_entities(query)
             print(json.dumps(results, indent=2))
         
+        elif command == "list-entities":
+            # kb-cli list-entities [limit]
+            limit = int(sys.argv[2]) if len(sys.argv) > 2 else None
+            entities = kb.list_entities(limit)
+            print(json.dumps(entities, indent=2))
+        
+        elif command == "stats":
+            # kb-cli stats
+            stats = kb.get_stats()
+            print(json.dumps(stats, indent=2))
+        
+        elif command == "export-entity":
+            # kb-cli export-entity <id>
+            entity_id = sys.argv[2]
+            markdown = kb.export_entity_markdown(entity_id)
+            if markdown:
+                print(markdown)
+            else:
+                print(f"Entity not found: {entity_id}", file=sys.stderr)
+                sys.exit(1)
+        
+        elif command == "visualize":
+            # kb-cli visualize [format]
+            fmt = sys.argv[2] if len(sys.argv) > 2 else "dot"
+            output = kb.visualize_graph(fmt)
+            print(output)
+        
         else:
             print(f"Unknown command: {command}", file=sys.stderr)
             print_usage()
@@ -113,6 +140,7 @@ Entity Commands:
   add-entity <title> [content] [metadata_json]     Add a new entity
   get-entity <id>                                   Get entity by ID
   update-entity <id> [title] [content] [metadata]  Update entity
+  list-entities [limit]                             List all entities
   search <query>                                    Search entities
 
 Link Commands:
@@ -126,12 +154,19 @@ Task Commands:
   update-task-status <task_id> <status>                   Update status
   get-tasks [status] [entity_id]                          List tasks
 
+Analytics Commands:
+  stats                                            Get KB statistics
+  export-entity <id>                               Export entity as markdown
+  visualize [format]                               Generate graph (dot/json)
+
 Examples:
   kb-cli add-entity "My Research" "Content here" '{"type":"research"}'
   kb-cli add-link abc123 def456 "child"
   kb-cli add-task "Follow up on security" "Research encryption" abc123
   kb-cli get-tasks pending
   kb-cli search "cloud storage"
+  kb-cli stats
+  kb-cli list-entities 10
 """)
 
 if __name__ == "__main__":

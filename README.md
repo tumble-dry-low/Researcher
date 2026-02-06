@@ -1,18 +1,54 @@
 # Researcher 🔬
 
-A prompt-based deep research system for AI agents. No code required - just instructions for conducting hierarchical research with wiki-linked markdown files.
+An automatic knowledge base system for AI agents. Minimal code, maximum automation - agents just add information, the system manages everything else.
 
 ## Overview
 
-This repository provides a methodology for AI agents (Claude, GPT, etc.) to conduct structured, hierarchical research and maintain a linked knowledge base using markdown files. The agent uses its built-in file operations and web search capabilities - no custom code needed.
+This repository provides an **automated knowledge base** with:
+- **Entities**: Research notes with automatic ID generation
+- **Links**: Relationships managed automatically
+- **Task Backlog**: Future work tracked automatically, tied to notes
 
-## What's Included
+Agents don't manually manage structure - they just call simple commands and the system handles storage, linking, and task tracking.
 
-- **This README**: Complete instructions for the research methodology
-- **knowledge-base/**: Empty directory where research results are saved
+## Two Approaches
+
+### 1. Automated Database (Recommended for MVP)
+
+**Minimal Python implementation** - agents use CLI, system manages everything:
+
+```bash
+# Add entity (auto-generates ID)
+./kb-cli add-entity "Research Question" "Content here" '{"type":"question"}'
+
+# Link entities automatically
+./kb-cli add-link abc123 def456 "child"
+
+# Add task to backlog (tied to entity)
+./kb-cli add-task "Follow-up research" "Details..." abc123
+
+# Query tasks
+./kb-cli get-tasks pending
+```
+
+**Database schema:**
+- `entities` table: id, title, content, metadata, timestamps
+- `links` table: from_id, to_id, link_type
+- `tasks` table: title, description, status, entity_id, metadata
+
+See `kb.py` and `kb-cli` for the ~300 line implementation.
+
+### 2. Markdown Files (Documentation-only)
+
+Instructions-based approach using markdown files with random IDs.
 
 ## Prerequisites
 
+### For Database Approach
+- Python 3.7+
+- SQLite (built-in)
+
+### For Markdown Approach  
 - An AI agent with file read/write capabilities (e.g., Claude Desktop with filesystem MCP)
 - Web search capability (built-in or via MCP server)
 

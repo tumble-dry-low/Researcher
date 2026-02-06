@@ -12,6 +12,10 @@ Thumbs.db
 # Logs
 *.log
 
+# Knowledge base database (user-generated content)
+knowledge-base/*.db
+knowledge-base/*.db-journal
+
 # Knowledge base entries (user-generated content)
 knowledge-base/entries/*.md
 !knowledge-base/entries/.gitkeep
@@ -19,6 +23,11 @@ knowledge-base/entries/*.md
 # Assets (user-generated)
 knowledge-base/assets/*
 !knowledge-base/assets/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
 
 # Temporary files
 tmp/

@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""
+Simple CLI for the Knowledge Base.
+Agents can use this to manage entities, links, and tasks automatically.
+"""
+
+import sys
+import json
+from kb import KnowledgeBase
+
+def main():
+    if len(sys.argv) < 2:
+        print_usage()
+        sys.exit(1)
+    
+    kb = KnowledgeBase()
+    command = sys.argv[1]
+    
+    try:
+        if command == "add-entity":
+            # kb-cli add-entity "Title" "Content" '{"key":"value"}'
+            title = sys.argv[2]
+            content = sys.argv[3] if len(sys.argv) > 3 else ""
+            metadata = json.loads(sys.argv[4]) if len(sys.argv) > 4 else {}
+            entity_id = kb.add_entity(title, content, metadata)
+            print(json.dumps({"id": entity_id, "title": title}))
+        
+        elif command == "get-entity":
+            # kb-cli get-entity <id>
+            entity_id = sys.argv[2]
+            entity = kb.get_entity(entity_id)
+            print(json.dumps(entity, indent=2))
+        
+        elif command == "update-entity":
+            # kb-cli update-entity <id> "New title" "New content" '{"meta":"data"}'
+            entity_id = sys.argv[2]
+            title = sys.argv[3] if len(sys.argv) > 3 else None
+            content = sys.argv[4] if len(sys.argv) > 4 else None
+            metadata = json.loads(sys.argv[5]) if len(sys.argv) > 5 else None
+            kb.update_entity(entity_id, title, content, metadata)
+            print(json.dumps({"success": True, "id": entity_id}))
+        
+        elif command == "add-link":
+            # kb-cli add-link <from_id> <to_id> [link_type]
+            from_id = sys.argv[2]
+            to_id = sys.argv[3]
+            link_type = sys.argv[4] if len(sys.argv) > 4 else "related"
+            link_id = kb.add_link(from_id, to_id, link_type)
+            print(json.dumps({"link_id": link_id, "from": from_id, "to": to_id, "type": link_type}))
+        
+        elif command == "get-links-from":
+            # kb-cli get-links-from <entity_id>
+            entity_id = sys.argv[2]
+            links = kb.get_links_from(entity_id)
+            print(json.dumps(links, indent=2))
+        
+        elif command == "get-links-to":
+            # kb-cli get-links-to <entity_id>
+            entity_id = sys.argv[2]
+            links = kb.get_links_to(entity_id)
+            print(json.dumps(links, indent=2))
+        
+        elif command == "add-task":
+            # kb-cli add-task "Title" "Description" [entity_id] '{"meta":"data"}'
+            title = sys.argv[2]
+            description = sys.argv[3] if len(sys.argv) > 3 else ""
+            entity_id = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] != "null" else None
+            metadata = json.loads(sys.argv[5]) if len(sys.argv) > 5 else {}
+            task_id = kb.add_task(title, description, entity_id, metadata)
+            print(json.dumps({"task_id": task_id, "title": title}))
+        
+        elif command == "get-task":
+            # kb-cli get-task <task_id>
+            task_id = int(sys.argv[2])
+            task = kb.get_task(task_id)
+            print(json.dumps(task, indent=2))
+        
+        elif command == "update-task-status":
+            # kb-cli update-task-status <task_id> <status>
+            task_id = int(sys.argv[2])
+            status = sys.argv[3]
+            kb.update_task_status(task_id, status)
+            print(json.dumps({"success": True, "task_id": task_id, "status": status}))
+        
+        elif command == "get-tasks":
+            # kb-cli get-tasks [status] [entity_id]
+            status = sys.argv[2] if len(sys.argv) > 2 else None
+            entity_id = sys.argv[3] if len(sys.argv) > 3 else None
+            tasks = kb.get_tasks(status, entity_id)
+            print(json.dumps(tasks, indent=2))
+        
+        elif command == "search":
+            # kb-cli search "query"
+            query = sys.argv[2]
+            results = kb.search_entities(query)
+            print(json.dumps(results, indent=2))
+        
+        else:
+            print(f"Unknown command: {command}", file=sys.stderr)
+            print_usage()
+            sys.exit(1)
+    
+    finally:
+        kb.close()
+
+def print_usage():
+    print("""
+Knowledge Base CLI - Automatic management for agents
+
+Usage: kb-cli <command> [args...]
+
+Entity Commands:
+  add-entity <title> [content] [metadata_json]     Add a new entity
+  get-entity <id>                                   Get entity by ID
+  update-entity <id> [title] [content] [metadata]  Update entity
+  search <query>                                    Search entities
+
+Link Commands:
+  add-link <from_id> <to_id> [link_type]          Create link
+  get-links-from <id>                              Get outgoing links
+  get-links-to <id>                                Get incoming links
+
+Task Commands:
+  add-task <title> [description] [entity_id] [metadata]  Add task
+  get-task <task_id>                                      Get task
+  update-task-status <task_id> <status>                   Update status
+  get-tasks [status] [entity_id]                          List tasks
+
+Examples:
+  kb-cli add-entity "My Research" "Content here" '{"type":"research"}'
+  kb-cli add-link abc123 def456 "child"
+  kb-cli add-task "Follow up on security" "Research encryption" abc123
+  kb-cli get-tasks pending
+  kb-cli search "cloud storage"
+""")
+
+if __name__ == "__main__":
+    main()

@@ -458,6 +458,264 @@ $ ./kb-cli list-entities 5
 ]
 ```
 
+## Keeping Analysis Fresh: Staleness Detection
+
+### The Challenge
+
+Code analysis becomes outdated when code changes. The information isn't useful if it's no longer true.
+
+### Solution: Git Hash Tracking + Auto-Invalidation
+
+Track which code each entity analyzes and detect when it changes.
+
+#### Pattern 1: Git Hash Tracking (Recommended)
+
+Store git commit hash when analyzing code:
+
+```bash
+#!/bin/bash
+# Analyze with git tracking
+
+FILE_PATH="src/auth/AuthService.js"
+GIT_HASH=$(git rev-parse HEAD:$FILE_PATH)
+ANALYSIS_CONTENT=$(analyze_file "$FILE_PATH")
+
+ENTITY_ID=$(./kb-cli add-entity \
+    "Component: AuthService" \
+    "$ANALYSIS_CONTENT" \
+    "{\"type\":\"component\",\"file\":\"$FILE_PATH\",\"git_hash\":\"$GIT_HASH\",\"analyzed_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" | jq -r '.id')
+
+echo "Analyzed $FILE_PATH at commit $GIT_HASH"
+```
+
+#### Pattern 2: Staleness Detection Workflow
+
+Check if analysis is outdated before using it:
+
+```bash
+#!/bin/bash
+# check_staleness.sh - Detect outdated analysis
+
+echo "Checking for stale analysis..."
+
+# Get all component entities
+COMPONENTS=$(./kb-cli list-entities | jq -r '.[] | select((.metadata | fromjson).type == "component")')
+
+STALE_COUNT=0
+
+for component in $(echo "$COMPONENTS" | jq -r '.id'); do
+    ENTITY=$(./kb-cli get-entity "$component")
+    
+    FILE=$(echo "$ENTITY" | jq -r '.metadata | fromjson | .file')
+    STORED_HASH=$(echo "$ENTITY" | jq -r '.metadata | fromjson | .git_hash')
+    
+    if [ -f "$FILE" ]; then
+        CURRENT_HASH=$(git rev-parse HEAD:$FILE 2>/dev/null || echo "not_in_git")
+        
+        if [ "$STORED_HASH" != "$CURRENT_HASH" ]; then
+            echo "⚠️  STALE: $FILE (stored: ${STORED_HASH:0:7}, current: ${CURRENT_HASH:0:7})"
+            
+            # Create task to re-analyze
+            ./kb-cli add-task \
+                "Re-analyze $FILE" \
+                "Code has changed since last analysis. Old hash: $STORED_HASH, New hash: $CURRENT_HASH" \
+                "$component" \
+                "{\"priority\":\"high\",\"type\":\"staleness\"}"
+            
+            ((STALE_COUNT++))
+        fi
+    else
+        echo "⚠️  DELETED: $FILE"
+        # Mark as historical
+        ./kb-cli update-entity "$component" \
+            "$(echo "$ENTITY" | jq -r '.title')" \
+            "$(echo "$ENTITY" | jq -r '.content')\n\n**[HISTORICAL]** File no longer exists" \
+            "{\"status\":\"historical\",\"deleted_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+    fi
+done
+
+echo "\nStaleness check complete:"
+echo "- Stale entities: $STALE_COUNT"
+echo "- Tasks created for re-analysis"
+```
+
+#### Pattern 3: Auto-Refresh Workflow
+
+Automatically refresh stale entities:
+
+```bash
+#!/bin/bash
+# auto_refresh.sh - Re-analyze stale components
+
+# Get staleness tasks
+STALE_TASKS=$(./kb-cli get-tasks pending | jq -r '.[] | select((.metadata | fromjson).type == "staleness")')
+
+for task_id in $(echo "$STALE_TASKS" | jq -r '.id'); do
+    TASK=$(./kb-cli get-task "$task_id")
+    ENTITY_ID=$(echo "$TASK" | jq -r '.entity_id')
+    
+    # Get entity details
+    ENTITY=$(./kb-cli get-entity "$ENTITY_ID")
+    FILE=$(echo "$ENTITY" | jq -r '.metadata | fromjson | .file')
+    
+    echo "Re-analyzing $FILE..."
+    
+    # Perform fresh analysis
+    NEW_CONTENT=$(analyze_file "$FILE")
+    NEW_HASH=$(git rev-parse HEAD:$FILE)
+    
+    # Update entity with fresh data
+    ./kb-cli update-entity "$ENTITY_ID" \
+        "$(echo "$ENTITY" | jq -r '.title')" \
+        "$NEW_CONTENT" \
+        "{\"type\":\"component\",\"file\":\"$FILE\",\"git_hash\":\"$NEW_HASH\",\"analyzed_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"refreshed\":true}"
+    
+    # Mark task as completed
+    ./kb-cli update-task "$task_id" "completed"
+    
+    echo "✓ Updated $FILE"
+done
+
+echo "\nAuto-refresh complete"
+```
+
+#### Pattern 4: Differential Analysis
+
+Track evolution by linking old and new analysis:
+
+```bash
+#!/bin/bash
+# differential_analysis.sh - Track code evolution
+
+FILE_PATH="src/auth/AuthService.js"
+OLD_ENTITY_ID=$(find_entity_for_file "$FILE_PATH")
+
+if [ -n "$OLD_ENTITY_ID" ]; then
+    # Perform fresh analysis
+    NEW_CONTENT=$(analyze_file "$FILE_PATH")
+    NEW_HASH=$(git rev-parse HEAD:$FILE_PATH)
+    
+    # Create new entity
+    NEW_ENTITY_ID=$(./kb-cli add-entity \
+        "Component: AuthService (v2)" \
+        "$NEW_CONTENT" \
+        "{\"type\":\"component\",\"file\":\"$FILE_PATH\",\"git_hash\":\"$NEW_HASH\",\"version\":2}" | jq -r '.id')
+    
+    # Link old to new with "supersedes" relationship
+    ./kb-cli add-link "$NEW_ENTITY_ID" "$OLD_ENTITY_ID" "supersedes"
+    
+    # Mark old as historical
+    ./kb-cli update-entity "$OLD_ENTITY_ID" \
+        "Component: AuthService (v1)" \
+        "$(get_entity_content $OLD_ENTITY_ID)\n\n**[HISTORICAL]** Superseded by newer analysis" \
+        "{\"status\":\"historical\",\"superseded_by\":\"$NEW_ENTITY_ID\"}"
+    
+    # Generate diff summary
+    CHANGES=$(git diff $OLD_HASH $NEW_HASH -- "$FILE_PATH" | diffstat)
+    echo "Changes detected: $CHANGES"
+fi
+```
+
+#### Pattern 5: Time-Based Staleness
+
+Mark entities as stale after N days:
+
+```bash
+#!/bin/bash
+# time_based_staleness.sh
+
+MAX_AGE_DAYS=30
+CUTOFF_DATE=$(date -u -d "$MAX_AGE_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
+
+echo "Finding entities older than $MAX_AGE_DAYS days (before $CUTOFF_DATE)..."
+
+ALL_ENTITIES=$(./kb-cli list-entities)
+
+for entity_id in $(echo "$ALL_ENTITIES" | jq -r '.[] | select((.metadata | fromjson).analyzed_at?) | .id'); do
+    ENTITY=$(./kb-cli get-entity "$entity_id")
+    ANALYZED_AT=$(echo "$ENTITY" | jq -r '.metadata | fromjson | .analyzed_at')
+    
+    if [[ "$ANALYZED_AT" < "$CUTOFF_DATE" ]]; then
+        TITLE=$(echo "$ENTITY" | jq -r '.title')
+        echo "STALE: $TITLE (analyzed $ANALYZED_AT)"
+        
+        # Add refresh task
+        ./kb-cli add-task \
+            "Refresh: $TITLE" \
+            "Entity is >$MAX_AGE_DAYS days old, may be outdated" \
+            "$entity_id" \
+            "{\"priority\":\"medium\",\"type\":\"staleness\",\"reason\":\"age\"}"
+    fi
+done
+```
+
+### Best Practices for Freshness
+
+1. **Track at Creation**: Always include `git_hash` and `analyzed_at` in metadata
+2. **Regular Checks**: Run staleness detection daily or on PR merges
+3. **Prioritize Updates**: Refresh high-traffic components first
+4. **Keep History**: Use "supersedes" links to track evolution
+5. **Automate**: Integrate staleness detection into CI/CD
+6. **Set Thresholds**: Different components may have different freshness requirements
+7. **File Watchers**: Use git hooks or file watchers for real-time updates
+8. **Batch Updates**: Refresh multiple stale entities in parallel
+
+### Integration with CI/CD
+
+```yaml
+# .github/workflows/code-analysis-freshness.yml
+name: Check Code Analysis Freshness
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight
+
+jobs:
+  check-staleness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Full history for git hashes
+      
+      - name: Check for stale analysis
+        run: |
+          ./check_staleness.sh > staleness-report.txt
+          cat staleness-report.txt
+      
+      - name: Auto-refresh stale entities
+        run: |
+          ./auto_refresh.sh
+      
+      - name: Commit updated KB
+        run: |
+          git config user.name "Analysis Bot"
+          git config user.email "bot@example.com"
+          git add kb.db
+          git commit -m "chore: refresh stale code analysis" || true
+          git push || true
+```
+
+### Staleness Metadata Schema
+
+Recommended metadata structure:
+
+```json
+{
+  "type": "component",
+  "file": "src/auth/AuthService.js",
+  "git_hash": "abc123def456",
+  "analyzed_at": "2026-02-06T04:00:00Z",
+  "refreshed": false,
+  "status": "current",
+  "version": 1,
+  "superseded_by": null,
+  "max_age_days": 30
+}
+```
+
 ## Tips for Effective Analysis
 
 1. **Start Small**: Analyze one module thoroughly before expanding
@@ -468,5 +726,7 @@ $ ./kb-cli list-entities 5
 6. **Identify Hotspots**: Files with frequent changes may need refactoring
 7. **Map Data Flow**: Track how data moves through the system
 8. **Security Analysis**: Flag potential security issues as high-priority debt
+9. **Keep Fresh**: Implement staleness detection and auto-refresh workflows
+10. **Track Evolution**: Use differential analysis to document how code changes over time
 
-This agent transforms codebases into structured knowledge, making architecture visible and technical debt manageable.
+This agent transforms codebases into structured knowledge, making architecture visible and technical debt manageable. With staleness detection, the analysis stays fresh and useful as code evolves.

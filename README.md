@@ -28,13 +28,20 @@ This repository provides a methodology for AI agents (Claude, GPT, etc.) to cond
 
 ### File Naming Conventions
 
+Use random identifiers for filenames. The wiki links tell the story, not the filenames.
+
 ```
 knowledge-base/entries/
-├── research-{topic-slug}.md              # Single topic research
-├── structured-{question-slug}.md         # Debate-style multi-perspective
-├── tree-{question}-index.md              # Tree research overview
-├── tree-{question}-node-d{N}-{slug}.md   # Individual tree nodes at depth N
+├── a1b2c3d4.md    # Any research entry
+├── e5f6g7h8.md    # Another entry
+├── i9j0k1l2.md    # Links between files show relationships
+└── m3n4o5p6.md    # Descriptive titles in frontmatter, not filenames
 ```
+
+**Suggested identifier format:** 8 random alphanumeric characters (e.g., `a1b2c3d4.md`)
+**Alternative:** UUID, timestamp, or any unique identifier
+
+The important part is the content and links, not the filename.
 
 ### Research Types
 
@@ -85,7 +92,7 @@ createdAt: "ISO-8601 timestamp"
 
 Recursive question exploration with automatic branching and pruning.
 
-**Index File** (`tree-{question}-index.md`):
+**Index File** (e.g., `a1b2c3d4.md`):
 ```yaml
 ---
 title: "Tree Research Index: Root Question"
@@ -98,7 +105,7 @@ createdAt: "ISO-8601 timestamp"
 ---
 ```
 
-**Node File** (`tree-{question}-node-d{N}-{slug}.md`):
+**Node File** (e.g., `e5f6g7h8.md`):
 ```yaml
 ---
 title: "Node Question"
@@ -148,10 +155,11 @@ When conclusive:
 
 ### Wiki Linking Best Practices
 
-1. **Link between related research**: `[Related Topic](./research-related-topic.md)`
-2. **Parent to children**: `[Follow-up Question](./tree-...-node-d2-follow-up.md)`
+1. **Link between related research**: `[Related Topic](./a1b2c3d4.md)`
+2. **Parent to children**: `[Follow-up Question](./i9j0k1l2.md)`
 3. **Index to nodes**: Tree index links to all nodes for navigation
 4. **Bidirectional**: When linking A→B, also add B→A
+5. **Descriptive link text**: Use meaningful text since filenames are random
 
 ### Query Generation by Stance
 
@@ -193,25 +201,28 @@ After tree research on "Should we use cloud storage?":
 ```
 knowledge-base/
 ├── entries/
-│   ├── tree-should-we-use-cloud-storage-index.md
-│   ├── tree-should-we-use-cloud-storage-node-d0-should-we-use-cloud-storage.md
-│   ├── tree-should-we-use-cloud-storage-node-d1-what-are-security-concerns.md
-│   ├── tree-should-we-use-cloud-storage-node-d1-cost-analysis-needed.md
-│   └── tree-should-we-use-cloud-storage-node-d2-encryption-standards.md
+│   ├── a1b2c3d4.md  # "Tree Research Index: Should we use cloud storage?"
+│   ├── e5f6g7h8.md  # Root: "Should we use cloud storage?" → links to i9j0k1l2, m3n4o5p6
+│   ├── i9j0k1l2.md  # Child: "What are the security concerns?" → links to q7r8s9t0
+│   ├── m3n4o5p6.md  # Child: "Cost analysis needed?"
+│   └── q7r8s9t0.md  # Grandchild: "Encryption standards?"
 └── assets/
 ```
+
+Filenames are random identifiers. Titles in frontmatter and wiki links tell the story.
 
 ## Agent Instructions
 
 When asked to conduct research:
 
 1. **Choose research type** based on the question
-2. **Conduct web searches** for each position/query
-3. **Require sources**: Exclude any findings without citations
-4. **Generate markdown** following the format conventions above
-5. **Use wiki links** to connect related research
-6. **Save files** to `knowledge-base/entries/`
-7. **For trees**: Save leaf nodes first (bottom-up)
+2. **Generate random filename** (8 alphanumeric chars, e.g., `a1b2c3d4.md`)
+3. **Conduct web searches** for each position/query
+4. **Require sources**: Exclude any findings without citations
+5. **Generate markdown** following the format conventions above
+6. **Use wiki links** to connect related research (e.g., `[Security Concerns](./i9j0k1l2.md)`)
+7. **Save files** to `knowledge-base/entries/`
+8. **For trees**: Save leaf nodes first (bottom-up), then link from parents
 
 ## Configuration
 

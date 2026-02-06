@@ -11,6 +11,16 @@ This repository provides an **automated knowledge base** with:
 
 Agents don't manually manage structure - they just call simple commands and the system handles storage, linking, and task tracking.
 
+## Three Agent Implementations
+
+The knowledge base system supports multiple specialized agents:
+
+1. **[Researcher Agent](COPILOT_CLI_GUIDE.md)**: Deep research with parallel perspectives, tree-based exploration, source citation
+2. **[Code Analyzer Agent](CODE_ANALYZER_AGENT.md)**: Codebase analysis, architecture documentation, technical debt tracking
+3. **[Learning Path Agent](LEARNING_PATH_AGENT.md)**: Personalized learning curricula, skill trees, knowledge gap analysis
+
+All agents share the same KB infrastructure (entities, links, tasks) with agent-specific workflows.
+
 ## Two Approaches
 
 ### 1. Automated Database (Recommended for MVP)

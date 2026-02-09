@@ -464,7 +464,7 @@ EXPORT
   graph [dot|json]                                  Visualize knowledge graph
 
 SETUP
-  init                                              Scaffold project with KB + agent instructions
+  init                                              Scaffold project with KB + agent guides
 """)
 
 
@@ -501,12 +501,23 @@ kb route "Task description"                 # Pick coordinator
 | `kb help` | Full command reference |
 
 All output is JSON. Entity IDs are 12-char hex strings. Run `kb help` for the full command list.
+
+## Agent Guides
+
+Agent behavior guides are in `.copilot/agents/`:
+
+| Directory | Agents |
+|-----------|--------|
+| `coordinators/` | Hierarchical Planner, Swarm Coordinator, Pipeline Manager |
+| `specialists/` | Code Analyzer, Critic, Decision Log, Domain Expert, Gap Detector, Learning Path, Monitor, Quantitative, Synthesizer |
+
+To use an agent, read its guide (e.g. `cat .copilot/agents/coordinators/SWARM_COORDINATOR_AGENT.md`) and follow the workflow described there.
 """
 
 
 def _init_project():
-    """Scaffold current directory with KB and copilot instructions."""
-    import os
+    """Scaffold current directory with KB, copilot instructions, and agent guides."""
+    import shutil
     from pathlib import Path
 
     created = []
@@ -524,6 +535,20 @@ def _init_project():
         created.append(".copilot-instructions.md")
     else:
         print(f"  exists: {instructions}")
+
+    # Copy agent guides to .copilot/agents/
+    pkg_agents = Path(__file__).parent / "agents"
+    dest_agents = Path(".copilot") / "agents"
+    if pkg_agents.is_dir():
+        for md in sorted(pkg_agents.rglob("*.md")):
+            rel = md.relative_to(pkg_agents)
+            dest = dest_agents / rel
+            if not dest.exists():
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(md, dest)
+                created.append(f".copilot/agents/{rel}")
+            else:
+                print(f"  exists: .copilot/agents/{rel}")
 
     # Initialize DB
     db_path = kb_dir / "kb.db"

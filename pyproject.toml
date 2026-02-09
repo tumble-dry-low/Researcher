@@ -17,4 +17,4 @@ kb = "researcher.cli:main"
 include = ["researcher*"]
 
 [tool.setuptools.package-data]
-researcher = ["docs/**/*.md", "docs/**/*.sh"]
+researcher = ["agents/**/*.md"]

@@ -29,6 +29,7 @@ kb init
 This creates:
 - `knowledge-base/kb.db` — local SQLite research database
 - `.copilot-instructions.md` — agent instructions for copilot-cli sessions
+- `.copilot/agents/` — coordinator and specialist agent guides
 
 Any new copilot-cli session in that project will automatically discover the research agent.
 

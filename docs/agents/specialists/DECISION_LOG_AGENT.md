@@ -150,7 +150,7 @@ This decision should be reviewed in 6 months when we reach 50K users.
 EOF
 )
 
-DECISION_ID=$(./kb-cli add-entity \
+DECISION_ID=$(./kb-cli add \
     "$DECISION_TITLE" \
     "$DECISION_CONTENT" \
     "{\"type\":\"decision\",\"status\":\"accepted\",\"category\":\"architecture\",\"decision_date\":\"$DECISION_DATE\",\"impact\":\"high\",\"reversibility\":\"difficult\",\"review_date\":\"2026-08-06\"}" | jq -r '.id')
@@ -158,27 +158,27 @@ DECISION_ID=$(./kb-cli add-entity \
 echo "Decision logged: $DECISION_ID"
 
 # 2. Create entities for alternatives
-MONGO_ID=$(./kb-cli add-entity \
+MONGO_ID=$(./kb-cli add \
     "Alternative: MongoDB" \
     "Considered MongoDB for flexible schema and horizontal scaling, but rejected due to consistency requirements and team expertise." \
     "{\"type\":\"alternative\",\"for_decision\":\"$DECISION_ID\",\"status\":\"rejected\",\"reason\":\"consistency_requirements\"}" | jq -r '.id')
 
-./kb-cli add-link "$DECISION_ID" "$MONGO_ID" "considers"
+./kb-cli link "$DECISION_ID" "$MONGO_ID" "considers"
 
-MYSQL_ID=$(./kb-cli add-entity \
+MYSQL_ID=$(./kb-cli add \
     "Alternative: MySQL" \
     "Considered MySQL as familiar option, but PostgreSQL offers more features for similar complexity." \
     "{\"type\":\"alternative\",\"for_decision\":\"$DECISION_ID\",\"status\":\"rejected\",\"reason\":\"feature_set\"}" | jq -r '.id')
 
-./kb-cli add-link "$DECISION_ID" "$MYSQL_ID" "considers"
+./kb-cli link "$DECISION_ID" "$MYSQL_ID" "considers"
 
 # 3. Document stakeholders
-STAKEHOLDER_ID=$(./kb-cli add-entity \
+STAKEHOLDER_ID=$(./kb-cli add \
     "Decision Stakeholders: $DECISION_TITLE" \
     "Lead: @architect\nReviewers: @tech-lead, @security-lead\nAffected Teams: Backend, DevOps, Data" \
     "{\"type\":\"stakeholders\",\"decision_id\":\"$DECISION_ID\",\"lead\":\"architect\",\"teams\":[\"backend\",\"devops\",\"data\"]}" | jq -r '.id')
 
-./kb-cli add-link "$DECISION_ID" "$STAKEHOLDER_ID" "involves"
+./kb-cli link "$DECISION_ID" "$STAKEHOLDER_ID" "involves"
 
 # 4. Create review task
 ./kb-cli add-task \
@@ -255,17 +255,17 @@ EOF
 )
 
 # Create new decision entity
-NEW_DECISION_ID=$(./kb-cli add-entity \
+NEW_DECISION_ID=$(./kb-cli add \
     "Database Architecture: Add Read Replicas" \
     "$NEW_DECISION_CONTENT" \
     "{\"type\":\"decision\",\"status\":\"accepted\",\"category\":\"architecture\",\"decision_date\":\"$(date -u +%Y-%m-%d)\",\"impact\":\"high\",\"supersedes\":\"$ORIGINAL_DECISION_ID\"}" | jq -r '.id')
 
 # Link to original decision
-./kb-cli add-link "$NEW_DECISION_ID" "$ORIGINAL_DECISION_ID" "builds_on"
+./kb-cli link "$NEW_DECISION_ID" "$ORIGINAL_DECISION_ID" "builds_on"
 
 # Update original decision status
-ORIGINAL_CONTENT=$(./kb-cli get-entity "$ORIGINAL_DECISION_ID" | jq -r '.content')
-./kb-cli update-entity "$ORIGINAL_DECISION_ID" \
+ORIGINAL_CONTENT=$(./kb-cli get "$ORIGINAL_DECISION_ID" | jq -r '.content')
+./kb-cli update "$ORIGINAL_DECISION_ID" \
     "Use PostgreSQL for Primary Database (Evolved)" \
     "$ORIGINAL_CONTENT\n\n## Evolution\nThis decision evolved on $(date -u +%Y-%m-%d). See: $NEW_DECISION_ID" \
     "{\"type\":\"decision\",\"status\":\"evolved\",\"evolved_to\":\"$NEW_DECISION_ID\"}"
@@ -320,17 +320,17 @@ CONSEQUENCE_CONTENT=$(cat <<'EOF'
 EOF
 )
 
-CONSEQUENCE_ID=$(./kb-cli add-entity \
+CONSEQUENCE_ID=$(./kb-cli add \
     "Consequences: PostgreSQL Decision (6-month review)" \
     "$CONSEQUENCE_CONTENT" \
     "{\"type\":\"consequence\",\"decision_id\":\"$DECISION_ID\",\"review_date\":\"$(date -u +%Y-%m-%d)\",\"months_after\":$MONTHS_LATER,\"overall_assessment\":\"positive\"}" | jq -r '.id')
 
-./kb-cli add-link "$CONSEQUENCE_ID" "$DECISION_ID" "reviews"
+./kb-cli link "$CONSEQUENCE_ID" "$DECISION_ID" "reviews"
 
 # Update decision with review reference
-DECISION_CONTENT=$(./kb-cli get-entity "$DECISION_ID" | jq -r '.content')
-./kb-cli update-entity "$DECISION_ID" \
-    "$(./kb-cli get-entity "$DECISION_ID" | jq -r '.title')" \
+DECISION_CONTENT=$(./kb-cli get "$DECISION_ID" | jq -r '.content')
+./kb-cli update "$DECISION_ID" \
+    "$(./kb-cli get "$DECISION_ID" | jq -r '.title')" \
     "$DECISION_CONTENT\n\n## 6-Month Review\nSee consequence analysis: $CONSEQUENCE_ID" \
     "{\"type\":\"decision\",\"status\":\"accepted\",\"reviewed\":true,\"last_review\":\"$(date -u +%Y-%m-%d)\"}"
 
@@ -352,37 +352,37 @@ echo "=== Decision Log Analysis ==="
 
 # 1. Count decisions by category
 echo "\n## Decisions by Category"
-./kb-cli list-entities | jq -r '.[] | select((.metadata | fromjson).type == "decision") | (.metadata | fromjson).category' | sort | uniq -c
+./kb-cli list | jq -r '.[] | select((.metadata | fromjson).type == "decision") | (.metadata | fromjson).category' | sort | uniq -c
 
 # 2. Find high-impact decisions
 echo "\n## High-Impact Decisions"
-./kb-cli list-entities | jq -r '.[] | select((.metadata | fromjson).type == "decision" and (.metadata | fromjson).impact == "high") | "\(.title) - \((.metadata | fromjson).decision_date)"'
+./kb-cli list | jq -r '.[] | select((.metadata | fromjson).type == "decision" and (.metadata | fromjson).impact == "high") | "\(.title) - \((.metadata | fromjson).decision_date)"'
 
 # 3. Decisions needing review
 echo "\n## Decisions Due for Review"
 CURRENT_DATE=$(date -u +%Y-%m-%d)
-./kb-cli list-entities | jq -r --arg date "$CURRENT_DATE" '.[] | select((.metadata | fromjson).type == "decision" and (.metadata | fromjson).review_date? and (.metadata | fromjson).review_date < $date) | "\(.title) - Review due: \((.metadata | fromjson).review_date)"'
+./kb-cli list | jq -r --arg date "$CURRENT_DATE" '.[] | select((.metadata | fromjson).type == "decision" and (.metadata | fromjson).review_date? and (.metadata | fromjson).review_date < $date) | "\(.title) - Review due: \((.metadata | fromjson).review_date)"'
 
 # 4. Superseded decisions
 echo "\n## Evolution Chain"
-./kb-cli list-entities | jq -r '.[] | select((.metadata | fromjson).status == "evolved") | .title' | while read title; do
+./kb-cli list | jq -r '.[] | select((.metadata | fromjson).status == "evolved") | .title' | while read title; do
     echo "- $title"
     # Find what it evolved to
-    ENTITY_ID=$(./kb-cli list-entities | jq -r --arg t "$title" '.[] | select(.title == $t) | .id')
-    ./kb-cli get-links-from "$ENTITY_ID" | jq -r '.[] | select(.link_type == "builds_on") | "  └→ \(.to_title)"'
+    ENTITY_ID=$(./kb-cli list | jq -r --arg t "$title" '.[] | select(.title == $t) | .id')
+    ./kb-cli links "$ENTITY_ID" | jq -r '.[] | select(.link_type == "builds_on") | "  └→ \(.to_title)"'
 done
 
 # 5. Most referenced decisions
 echo "\n## Most Referenced Decisions"
-./kb-cli list-entities | jq -r '.[] | select((.metadata | fromjson).type == "decision") | .id' | while read id; do
-    COUNT=$(./kb-cli get-links-to "$id" | jq 'length')
-    TITLE=$(./kb-cli get-entity "$id" | jq -r '.title')
+./kb-cli list | jq -r '.[] | select((.metadata | fromjson).type == "decision") | .id' | while read id; do
+    COUNT=$(./kb-cli links "$id" | jq 'length')
+    TITLE=$(./kb-cli get "$id" | jq -r '.title')
     echo "$COUNT - $TITLE"
 done | sort -rn | head -5
 
 # 6. Decisions by reversibility
 echo "\n## Irreversible Decisions (High Risk)"
-./kb-cli list-entities | jq -r '.[] | select((.metadata | fromjson).type == "decision" and (.metadata | fromjson).reversibility == "irreversible") | "\(.title) - \((.metadata | fromjson).decision_date)"'
+./kb-cli list | jq -r '.[] | select((.metadata | fromjson).type == "decision" and (.metadata | fromjson).reversibility == "irreversible") | "\(.title) - \((.metadata | fromjson).decision_date)"'
 ```
 
 ## Integration with Copilot-CLI
@@ -503,7 +503,7 @@ This decision should be reviewed in {review_months} months.
         }
         
         result = subprocess.run(
-            [self.kb_cli, "add-entity", title, content, json.dumps(metadata)],
+            [self.kb_cli, "add", title, content, json.dumps(metadata)],
             capture_output=True,
             text=True
         )
@@ -541,7 +541,7 @@ Review date: {datetime.now().strftime("%Y-%m-%d")}
         }
         
         result = subprocess.run(
-            [self.kb_cli, "add-entity",
+            [self.kb_cli, "add",
              f"Consequences Review",
              consequence_content,
              json.dumps(metadata)],
@@ -553,7 +553,7 @@ Review date: {datetime.now().strftime("%Y-%m-%d")}
         
         # Link to decision
         subprocess.run([
-            self.kb_cli, "add-link",
+            self.kb_cli, "link",
             consequence_id, decision_id, "reviews"
         ])
         

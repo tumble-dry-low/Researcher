@@ -15,14 +15,8 @@ Thumbs.db
 # Knowledge base database (user-generated content)
 knowledge-base/*.db
 knowledge-base/*.db-journal
-
-# Knowledge base entries (user-generated content)
-knowledge-base/entries/*.md
-!knowledge-base/entries/.gitkeep
-
-# Assets (user-generated)
-knowledge-base/assets/*
-!knowledge-base/assets/.gitkeep
+knowledge-base/*.db-wal
+knowledge-base/*.db-shm
 
 # Python
 __pycache__/

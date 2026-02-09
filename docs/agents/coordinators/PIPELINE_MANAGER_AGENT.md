@@ -100,20 +100,20 @@ Track progress through pipeline:
 
 ```bash
 # Create pipeline
-PIPELINE_ID=$(./kb-cli add-entity \
+PIPELINE_ID=$(./kb-cli add \
   "Pipeline: GraphQL Migration" \
   "Sequential pipeline from research to implementation readiness" \
   '{"type":"pipeline","status":"stage_1","current_stage":1,"total_stages":5,"validation_required":true}' \
   | jq -r '.id')
 
 # Stage 1: Research
-STAGE1_ID=$(./kb-cli add-entity \
+STAGE1_ID=$(./kb-cli add \
   "Stage 1: Research GraphQL" \
   "Research GraphQL patterns, benefits, drawbacks, migration strategies" \
   '{"type":"pipeline_stage","stage_num":1,"parent_pipeline":"'$PIPELINE_ID'","agent":"researcher","status":"executing"}' \
   | jq -r '.id')
 
-./kb-cli add-link $PIPELINE_ID $STAGE1_ID "stage"
+./kb-cli link $PIPELINE_ID $STAGE1_ID "stage"
 
 # Execute stage 1
 ./kb-cli add-task \
@@ -123,13 +123,13 @@ STAGE1_ID=$(./kb-cli add-entity \
   '{"priority":"high","agent":"researcher"}'
 
 # Wait for completion
-while [ "$(./kb-cli get-entity $STAGE1_ID | jq -r '.metadata.status')" != "completed" ]; do
+while [ "$(./kb-cli get $STAGE1_ID | jq -r '.metadata.status')" != "completed" ]; do
   echo "Stage 1 in progress..."
   sleep 30
 done
 
 # Compress output for next stage
-STAGE1_SUMMARY=$(./kb-cli export-entity $STAGE1_ID | head -100)
+STAGE1_SUMMARY=$(./kb-cli export $STAGE1_ID | head -100)
 echo "Stage 1 complete. Output size: $(echo "$STAGE1_SUMMARY" | wc -c) chars"
 ```
 
@@ -137,14 +137,14 @@ echo "Stage 1 complete. Output size: $(echo "$STAGE1_SUMMARY" | wc -c) chars"
 
 ```bash
 # Stage 2: Code Analysis
-STAGE2_ID=$(./kb-cli add-entity \
+STAGE2_ID=$(./kb-cli add \
   "Stage 2: Analyze Current API" \
   "Analyze existing REST API architecture and assess GraphQL migration feasibility" \
   '{"type":"pipeline_stage","stage_num":2,"parent_pipeline":"'$PIPELINE_ID'","agent":"code-analyzer","status":"executing","input_entity":"'$STAGE1_ID'"}' \
   | jq -r '.id')
 
-./kb-cli add-link $PIPELINE_ID $STAGE2_ID "stage"
-./kb-cli add-link $STAGE1_ID $STAGE2_ID "feeds"
+./kb-cli link $PIPELINE_ID $STAGE2_ID "stage"
+./kb-cli link $STAGE1_ID $STAGE2_ID "feeds"
 
 # Pass Stage 1 output as context to Stage 2
 ./kb-cli add-task \
@@ -170,19 +170,19 @@ EOF
   '{"priority":"high","agent":"code-analyzer","input_from":"'$STAGE1_ID'"}'
 
 # Wait for completion with validation
-while [ "$(./kb-cli get-entity $STAGE2_ID | jq -r '.metadata.status')" != "completed" ]; do
+while [ "$(./kb-cli get $STAGE2_ID | jq -r '.metadata.status')" != "completed" ]; do
   sleep 30
 done
 
 # Validate Stage 2 output
-STAGE2_CONTENT=$(./kb-cli get-entity $STAGE2_ID | jq -r '.content')
+STAGE2_CONTENT=$(./kb-cli get $STAGE2_ID | jq -r '.content')
 if [ ${#STAGE2_CONTENT} -lt 100 ]; then
   echo "ERROR: Stage 2 output insufficient, requesting re-execution"
-  ./kb-cli update-entity $STAGE2_ID "" "" '{"status":"failed","error":"insufficient_output"}'
+  ./kb-cli update $STAGE2_ID "" "" '{"status":"failed","error":"insufficient_output"}'
   exit 1
 fi
 
-STAGE2_SUMMARY=$(./kb-cli export-entity $STAGE2_ID | head -100)
+STAGE2_SUMMARY=$(./kb-cli export $STAGE2_ID | head -100)
 ```
 
 **Stage 3-5: Similar Pattern**
@@ -202,40 +202,40 @@ CONTEXT="Stage 1: $STAGE1_SUMMARY\n\nStage 2: $STAGE2_SUMMARY"
 
 ```bash
 # Create data pipeline
-PIPELINE_ID=$(./kb-cli add-entity \
+PIPELINE_ID=$(./kb-cli add \
   "Pipeline: User Behavior Analysis" \
   "Process raw logs through analysis pipeline" \
   '{"type":"pipeline","total_stages":4,"data_pipeline":true}' \
   | jq -r '.id')
 
 # Stage 1: Data Collection (Researcher gathers data sources)
-STAGE1_ID=$(./kb-cli add-entity \
+STAGE1_ID=$(./kb-cli add \
   "Stage 1: Identify Data Sources" \
   "..." \
   '{"type":"pipeline_stage","stage_num":1,"agent":"researcher"}' | jq -r '.id')
 
 # Stage 2: Data Analysis (Code Analyzer processes data)
-STAGE2_ID=$(./kb-cli add-entity \
+STAGE2_ID=$(./kb-cli add \
   "Stage 2: Analyze Patterns" \
   "..." \
   '{"type":"pipeline_stage","stage_num":2,"agent":"code-analyzer","input_entity":"'$STAGE1_ID'"}' | jq -r '.id')
 
 # Stage 3: Insight Documentation (Decision Log documents findings)
-STAGE3_ID=$(./kb-cli add-entity \
+STAGE3_ID=$(./kb-cli add \
   "Stage 3: Document Insights" \
   "..." \
   '{"type":"pipeline_stage","stage_num":3,"agent":"decision-log","input_entity":"'$STAGE2_ID'"}' | jq -r '.id')
 
 # Stage 4: Action Plan (Learning Path creates enablement plan)
-STAGE4_ID=$(./kb-cli add-entity \
+STAGE4_ID=$(./kb-cli add \
   "Stage 4: Create Action Plan" \
   "..." \
   '{"type":"pipeline_stage","stage_num":4,"agent":"learning-path","input_entity":"'$STAGE3_ID'"}' | jq -r '.id')
 
 # Link pipeline stages
-./kb-cli add-link $STAGE1_ID $STAGE2_ID "feeds"
-./kb-cli add-link $STAGE2_ID $STAGE3_ID "feeds"
-./kb-cli add-link $STAGE3_ID $STAGE4_ID "feeds"
+./kb-cli link $STAGE1_ID $STAGE2_ID "feeds"
+./kb-cli link $STAGE2_ID $STAGE3_ID "feeds"
+./kb-cli link $STAGE3_ID $STAGE4_ID "feeds"
 ```
 
 ### Workflow 3: Review Pipeline with Validation
@@ -244,7 +244,7 @@ STAGE4_ID=$(./kb-cli add-entity \
 
 ```bash
 # Quality assurance pipeline
-PIPELINE_ID=$(./kb-cli add-entity \
+PIPELINE_ID=$(./kb-cli add \
   "Pipeline: Documentation QA" \
   "Multi-stage review process with validation gates" \
   '{"type":"pipeline","total_stages":4,"validation_gates":true}' \
@@ -269,13 +269,13 @@ function compress_output() {
   local max_chars=${2:-1000}
   
   # Get full content
-  local full_content=$(./kb-cli get-entity $entity_id | jq -r '.content')
+  local full_content=$(./kb-cli get $entity_id | jq -r '.content')
   
   # Compress (in production, use LLM to summarize)
   local summary=$(echo "$full_content" | head -c $max_chars)
   
   # Store summary in metadata for next stage
-  ./kb-cli update-entity $entity_id "" "" \
+  ./kb-cli update $entity_id "" "" \
     "{\"summary\":\"$summary\",\"full_content_length\":${#full_content}}"
   
   echo "$summary"
@@ -295,14 +295,14 @@ function validate_input() {
   local input_entity=$2
   
   # Get input
-  local input=$(./kb-cli get-entity $input_entity | jq -r '.metadata.summary // .content')
+  local input=$(./kb-cli get $input_entity | jq -r '.metadata.summary // .content')
   
   # Check sufficiency (simplified validation)
   if [ ${#input} -lt 100 ]; then
     echo "ERROR: Input insufficient for stage $stage_id"
     
     # Mark current stage as blocked
-    ./kb-cli update-entity $stage_id "" "" \
+    ./kb-cli update $stage_id "" "" \
       '{"status":"blocked","blocker":"insufficient_input","needs_reexecution":"'$input_entity'"}'
     
     return 1
@@ -340,10 +340,10 @@ function create_delta_handoff() {
   local current_stage=$2
   
   # Mark what was already provided
-  local prev_output=$(./kb-cli get-entity $prev_stage | jq -r '.metadata.summary')
+  local prev_output=$(./kb-cli get $prev_stage | jq -r '.metadata.summary')
   
   # Current stage tracks what's new
-  ./kb-cli update-entity $current_stage "" "" \
+  ./kb-cli update $current_stage "" "" \
     '{"input_entities":["'$prev_stage'"],"handoff_type":"delta","previous_context_length":'${#prev_output}'}'
 }
 ```
@@ -359,7 +359,7 @@ function rollback_stage() {
   echo "Stage $failed_stage failed validation, rolling back"
   
   # Find previous stage
-  local prev_stage=$(./kb-cli get-links-to $failed_stage | \
+  local prev_stage=$(./kb-cli links $failed_stage | \
     jq -r '.[] | select(.link_type == "feeds") | .id' | head -1)
   
   if [ -z "$prev_stage" ]; then
@@ -368,7 +368,7 @@ function rollback_stage() {
   fi
   
   # Mark current stage as rolled back
-  ./kb-cli update-entity $failed_stage "" "" \
+  ./kb-cli update $failed_stage "" "" \
     '{"status":"rolled_back","rollback_time":"'$(date -Iseconds)'"}'
   
   # Re-execute previous stage with additional guidance
@@ -379,8 +379,8 @@ function rollback_stage() {
     '{"priority":"high","re_execution":true}'
   
   # Update pipeline status
-  local failed_stage_num=$(./kb-cli get-entity $failed_stage | jq -r '.metadata.stage_num')
-  ./kb-cli update-entity $pipeline_id "" "" \
+  local failed_stage_num=$(./kb-cli get $failed_stage | jq -r '.metadata.stage_num')
+  ./kb-cli update $pipeline_id "" "" \
     '{"status":"stage_'$(($failed_stage_num-1))'","current_stage":'$(($failed_stage_num-1))'}'
 }
 ```
@@ -398,7 +398,7 @@ function rollback_stage() {
 TOPIC=$1
 
 # Create pipeline
-PIPELINE_ID=$(./kb-cli add-entity \
+PIPELINE_ID=$(./kb-cli add \
   "Pipeline: $TOPIC Analysis" \
   "Research → Analyze → Decide → Learn" \
   '{"type":"pipeline","strategy":"sequential_chaining","total_stages":4,"status":"stage_1"}' \
@@ -411,13 +411,13 @@ echo "Created pipeline: $PIPELINE_ID"
 # ========================================
 echo "=== Stage 1: Research ==="
 
-STAGE1_ID=$(./kb-cli add-entity \
+STAGE1_ID=$(./kb-cli add \
   "Stage 1: Research $TOPIC" \
   "Comprehensive research phase" \
   '{"type":"pipeline_stage","stage_num":1,"parent_pipeline":"'$PIPELINE_ID'","agent":"researcher","status":"executing"}' \
   | jq -r '.id')
 
-./kb-cli add-link $PIPELINE_ID $STAGE1_ID "stage"
+./kb-cli link $PIPELINE_ID $STAGE1_ID "stage"
 
 # Execute research
 ./kb-cli add-task \
@@ -427,13 +427,13 @@ STAGE1_ID=$(./kb-cli add-entity \
   '{"agent":"researcher","return_summary":true,"max_length":1000}'
 
 # Wait for completion
-while [ "$(./kb-cli get-entity $STAGE1_ID | jq -r '.metadata.status')" != "completed" ]; do
+while [ "$(./kb-cli get $STAGE1_ID | jq -r '.metadata.status')" != "completed" ]; do
   sleep 20
   echo "  Stage 1 in progress..."
 done
 
 # Compress output
-STAGE1_OUTPUT=$(./kb-cli export-entity $STAGE1_ID | head -80)
+STAGE1_OUTPUT=$(./kb-cli export $STAGE1_ID | head -80)
 echo "  Stage 1 complete. Output: ${#STAGE1_OUTPUT} chars"
 
 # ========================================
@@ -441,17 +441,17 @@ echo "  Stage 1 complete. Output: ${#STAGE1_OUTPUT} chars"
 # ========================================
 echo "=== Stage 2: Code Analysis ==="
 
-STAGE2_ID=$(./kb-cli add-entity \
+STAGE2_ID=$(./kb-cli add \
   "Stage 2: Analyze Implementation" \
   "Analyze current codebase considering research findings" \
   '{"type":"pipeline_stage","stage_num":2,"parent_pipeline":"'$PIPELINE_ID'","agent":"code-analyzer","status":"executing","input_entity":"'$STAGE1_ID'"}' \
   | jq -r '.id')
 
-./kb-cli add-link $PIPELINE_ID $STAGE2_ID "stage"
-./kb-cli add-link $STAGE1_ID $STAGE2_ID "feeds"
+./kb-cli link $PIPELINE_ID $STAGE2_ID "stage"
+./kb-cli link $STAGE1_ID $STAGE2_ID "feeds"
 
 # Update pipeline status
-./kb-cli update-entity $PIPELINE_ID "" "" '{"status":"stage_2","current_stage":2}'
+./kb-cli update $PIPELINE_ID "" "" '{"status":"stage_2","current_stage":2}'
 
 # Execute with context from Stage 1
 ./kb-cli add-task \
@@ -477,13 +477,13 @@ EOF
   '{"agent":"code-analyzer","input_from":"'$STAGE1_ID'"}'
 
 # Wait for completion
-while [ "$(./kb-cli get-entity $STAGE2_ID | jq -r '.metadata.status')" != "completed" ]; do
+while [ "$(./kb-cli get $STAGE2_ID | jq -r '.metadata.status')" != "completed" ]; do
   sleep 20
   echo "  Stage 2 in progress..."
 done
 
 # Validate output
-STAGE2_OUTPUT=$(./kb-cli export-entity $STAGE2_ID | head -80)
+STAGE2_OUTPUT=$(./kb-cli export $STAGE2_ID | head -80)
 if [ ${#STAGE2_OUTPUT} -lt 100 ]; then
   echo "  ERROR: Stage 2 output insufficient"
   rollback_stage $STAGE2_ID $PIPELINE_ID
@@ -497,16 +497,16 @@ echo "  Stage 2 complete. Output: ${#STAGE2_OUTPUT} chars"
 # ========================================
 echo "=== Stage 3: Document Decision ==="
 
-STAGE3_ID=$(./kb-cli add-entity \
+STAGE3_ID=$(./kb-cli add \
   "Stage 3: Decision Documentation" \
   "Document final decision with full context from research and analysis" \
   '{"type":"pipeline_stage","stage_num":3,"parent_pipeline":"'$PIPELINE_ID'","agent":"decision-log","status":"executing"}' \
   | jq -r '.id')
 
-./kb-cli add-link $PIPELINE_ID $STAGE3_ID "stage"
-./kb-cli add-link $STAGE2_ID $STAGE3_ID "feeds"
+./kb-cli link $PIPELINE_ID $STAGE3_ID "stage"
+./kb-cli link $STAGE2_ID $STAGE3_ID "feeds"
 
-./kb-cli update-entity $PIPELINE_ID "" "" '{"status":"stage_3","current_stage":3}'
+./kb-cli update $PIPELINE_ID "" "" '{"status":"stage_3","current_stage":3}'
 
 # Pass accumulated context
 ./kb-cli add-task \
@@ -538,12 +538,12 @@ EOF
   '{"agent":"decision-log","input_from":["'$STAGE1_ID'","'$STAGE2_ID'"]}'
 
 # Wait for completion
-while [ "$(./kb-cli get-entity $STAGE3_ID | jq -r '.metadata.status')" != "completed" ]; do
+while [ "$(./kb-cli get $STAGE3_ID | jq -r '.metadata.status')" != "completed" ]; do
   sleep 20
   echo "  Stage 3 in progress..."
 done
 
-STAGE3_OUTPUT=$(./kb-cli export-entity $STAGE3_ID | head -80)
+STAGE3_OUTPUT=$(./kb-cli export $STAGE3_ID | head -80)
 echo "  Stage 3 complete. Output: ${#STAGE3_OUTPUT} chars"
 
 # ========================================
@@ -551,16 +551,16 @@ echo "  Stage 3 complete. Output: ${#STAGE3_OUTPUT} chars"
 # ========================================
 echo "=== Stage 4: Team Enablement ==="
 
-STAGE4_ID=$(./kb-cli add-entity \
+STAGE4_ID=$(./kb-cli add \
   "Stage 4: Training Plan" \
   "Create team training plan based on decision and implementation requirements" \
   '{"type":"pipeline_stage","stage_num":4,"parent_pipeline":"'$PIPELINE_ID'","agent":"learning-path","status":"executing"}' \
   | jq -r '.id')
 
-./kb-cli add-link $PIPELINE_ID $STAGE4_ID "stage"
-./kb-cli add-link $STAGE3_ID $STAGE4_ID "feeds"
+./kb-cli link $PIPELINE_ID $STAGE4_ID "stage"
+./kb-cli link $STAGE3_ID $STAGE4_ID "feeds"
 
-./kb-cli update-entity $PIPELINE_ID "" "" '{"status":"stage_4","current_stage":4}'
+./kb-cli update $PIPELINE_ID "" "" '{"status":"stage_4","current_stage":4}'
 
 ./kb-cli add-task \
   "Learning: Create Training" \
@@ -587,18 +587,18 @@ EOF
   '{"agent":"learning-path"}'
 
 # Wait for final stage
-while [ "$(./kb-cli get-entity $STAGE4_ID | jq -r '.metadata.status')" != "completed" ]; do
+while [ "$(./kb-cli get $STAGE4_ID | jq -r '.metadata.status')" != "completed" ]; do
   sleep 20
   echo "  Stage 4 in progress..."
 done
 
-STAGE4_OUTPUT=$(./kb-cli export-entity $STAGE4_ID | head -80)
+STAGE4_OUTPUT=$(./kb-cli export $STAGE4_ID | head -80)
 echo "  Stage 4 complete. Output: ${#STAGE4_OUTPUT} chars"
 
 # ========================================
 # PIPELINE COMPLETE
 # ========================================
-./kb-cli update-entity $PIPELINE_ID "" "" '{"status":"completed"}'
+./kb-cli update $PIPELINE_ID "" "" '{"status":"completed"}'
 
 echo "========================================="
 echo "Pipeline complete: $PIPELINE_ID"
@@ -607,7 +607,7 @@ echo "  Stage 2 (Analysis): $STAGE2_ID"
 echo "  Stage 3 (Decision): $STAGE3_ID"
 echo "  Stage 4 (Learning): $STAGE4_ID"
 echo ""
-echo "View full pipeline: ./kb-cli visualize"
+echo "View full pipeline: ./kb-cli graph"
 ```
 
 ### Workflow 4: Iterative Refinement Pipeline
@@ -616,36 +616,36 @@ echo "View full pipeline: ./kb-cli visualize"
 
 ```bash
 # Pipeline with feedback loops
-PIPELINE_ID=$(./kb-cli add-entity \
+PIPELINE_ID=$(./kb-cli add \
   "Pipeline: Document Refinement" \
   "Iterative improvement through review cycles" \
   '{"type":"pipeline","total_stages":5,"max_iterations":3,"current_iteration":1}' \
   | jq -r '.id')
 
 # Stage 1: Draft (Researcher creates initial version)
-DRAFT_ID=$(./kb-cli add-entity "Draft" "..." '{"stage_num":1}' | jq -r '.id')
+DRAFT_ID=$(./kb-cli add "Draft" "..." '{"stage_num":1}' | jq -r '.id')
 
 # Stage 2: Review (Code Analyzer reviews for technical accuracy)
-REVIEW1_ID=$(./kb-cli add-entity "Review: Technical" "..." '{"stage_num":2,"input_entity":"'$DRAFT_ID'"}' | jq -r '.id')
-./kb-cli add-link $DRAFT_ID $REVIEW1_ID "feeds"
+REVIEW1_ID=$(./kb-cli add "Review: Technical" "..." '{"stage_num":2,"input_entity":"'$DRAFT_ID'"}' | jq -r '.id')
+./kb-cli link $DRAFT_ID $REVIEW1_ID "feeds"
 
 # Check if revision needed
-NEEDS_REVISION=$(./kb-cli get-entity $REVIEW1_ID | jq -r '.metadata.needs_revision // false')
+NEEDS_REVISION=$(./kb-cli get $REVIEW1_ID | jq -r '.metadata.needs_revision // false')
 
 if [ "$NEEDS_REVISION" == "true" ]; then
   # Stage 3: Revise (Researcher incorporates feedback)
-  REVISION_ID=$(./kb-cli add-entity "Revision: Draft v2" "..." \
+  REVISION_ID=$(./kb-cli add "Revision: Draft v2" "..." \
     '{"stage_num":3,"input_entities":["'$DRAFT_ID'","'$REVIEW1_ID'"]}' | jq -r '.id')
-  ./kb-cli add-link $REVIEW1_ID $REVISION_ID "requires_revision"
+  ./kb-cli link $REVIEW1_ID $REVISION_ID "requires_revision"
   
   # Stage 4: Review again
-  REVIEW2_ID=$(./kb-cli add-entity "Review: Final" "..." \
+  REVIEW2_ID=$(./kb-cli add "Review: Final" "..." \
     '{"stage_num":4,"input_entity":"'$REVISION_ID'"}' | jq -r '.id')
-  ./kb-cli add-link $REVISION_ID $REVIEW2_ID "feeds"
+  ./kb-cli link $REVISION_ID $REVIEW2_ID "feeds"
 fi
 
 # Stage 5: Finalize
-FINAL_ID=$(./kb-cli add-entity "Finalized Document" "..." '{"stage_num":5}' | jq -r '.id')
+FINAL_ID=$(./kb-cli add "Finalized Document" "..." '{"stage_num":5}' | jq -r '.id')
 ```
 
 ## Handoff Types
@@ -661,10 +661,10 @@ function full_context_handoff() {
   # Collect all previous stage outputs
   local context=""
   for i in $(seq 1 $(($current_stage_num - 1))); do
-    local stage=$(./kb-cli get-links-from $pipeline_id | \
+    local stage=$(./kb-cli links $pipeline_id | \
       jq -r '.[] | select(.metadata.stage_num == '$i') | .id' | head -1)
     
-    local summary=$(./kb-cli get-entity $stage | jq -r '.metadata.summary')
+    local summary=$(./kb-cli get $stage | jq -r '.metadata.summary')
     context="$context\n\nStage $i:\n$summary"
   done
   
@@ -680,7 +680,7 @@ function compressed_handoff() {
   local prev_stage=$1
   local max_chars=500
   
-  local summary=$(./kb-cli export-entity $prev_stage | head -c $max_chars)
+  local summary=$(./kb-cli export $prev_stage | head -c $max_chars)
   echo "$summary"
 }
 ```
@@ -694,11 +694,11 @@ function delta_handoff() {
   local current_stage=$2
   
   # Current stage gets reference to previous stage
-  ./kb-cli update-entity $current_stage "" "" \
+  ./kb-cli update $current_stage "" "" \
     '{"input_entity_id":"'$prev_stage'","handoff_type":"delta"}'
   
   # Agent fetches previous content only if needed
-  echo "Input available from: $prev_stage (fetch with ./kb-cli get-entity)"
+  echo "Input available from: $prev_stage (fetch with ./kb-cli get)"
 }
 ```
 
@@ -715,7 +715,7 @@ function execute_stage() {
   # Get input context
   local context=""
   if [ ! -z "$input_entity" ]; then
-    context=$(./kb-cli get-entity $input_entity | jq -r '.metadata.summary // .content' | head -c 1000)
+    context=$(./kb-cli get $input_entity | jq -r '.metadata.summary // .content' | head -c 1000)
   fi
   
   # Execute stage with agent
@@ -728,7 +728,7 @@ $([ ! -z "$context" ] && echo "CONTEXT FROM PREVIOUS STAGE:
 $context
 
 ")YOUR TASK:
-$(./kb-cli get-entity $stage_id | jq -r '.content')
+$(./kb-cli get $stage_id | jq -r '.content')
 
 Return summary for next stage (max 1000 chars).
 EOF
@@ -737,14 +737,14 @@ EOF
     '{"agent":"'$agent'","input_entity":"'$input_entity'"}'
   
   # Monitor
-  while [ "$(./kb-cli get-entity $stage_id | jq -r '.metadata.status')" != "completed" ]; do
+  while [ "$(./kb-cli get $stage_id | jq -r '.metadata.status')" != "completed" ]; do
     echo "  Stage executing..."
     sleep 15
   done
   
   # Extract output for next stage
-  local output=$(./kb-cli export-entity $stage_id | head -80)
-  ./kb-cli update-entity $stage_id "" "" '{"summary":"'"$output"'"}'
+  local output=$(./kb-cli export $stage_id | head -80)
+  ./kb-cli update $stage_id "" "" '{"summary":"'"$output"'"}'
   
   echo "  Stage complete"
 }
@@ -786,7 +786,7 @@ EOF
 # Create → Validate → Fix → Validate → Approve
 
 # Multiple validation stages catch different issue types
-PIPELINE_ID=$(./kb-cli add-entity \
+PIPELINE_ID=$(./kb-cli add \
   "Pipeline: Multi-Stage Validation" \
   "..." \
   '{"type":"pipeline","validation_pipeline":true}' | jq -r '.id')
@@ -804,7 +804,7 @@ PIPELINE_ID=$(./kb-cli add-entity \
 # Start simple → Add detail → Add context → Add cross-references
 
 # Each stage adds more information
-PIPELINE_ID=$(./kb-cli add-entity \
+PIPELINE_ID=$(./kb-cli add \
   "Pipeline: Progressive Enrichment" \
   "..." \
   '{"type":"pipeline","enrichment_pipeline":true}' | jq -r '.id')
@@ -822,7 +822,7 @@ PIPELINE_ID=$(./kb-cli add-entity \
 # Transform format/structure at each stage
 
 # Raw data → Structured → Analyzed → Documented → Published
-PIPELINE_ID=$(./kb-cli add-entity \
+PIPELINE_ID=$(./kb-cli add \
   "Pipeline: Data Transformation" \
   "..." \
   '{"type":"pipeline","transformation_pipeline":true}' | jq -r '.id')
@@ -836,18 +836,18 @@ PIPELINE_ID=$(./kb-cli add-entity \
 # A single stage can internally use multiple agents, then continue pipeline
 
 # Stage 2 uses both Code Analyzer AND Researcher in parallel
-STAGE2_ID=$(./kb-cli add-entity "Stage 2: Multi-Agent Analysis" "..." '{"stage_num":2}' | jq -r '.id')
+STAGE2_ID=$(./kb-cli add "Stage 2: Multi-Agent Analysis" "..." '{"stage_num":2}' | jq -r '.id')
 
 # Fan out
-ANALYSIS_A=$(./kb-cli add-entity "Analysis A" "..." '{"parent_stage":"'$STAGE2_ID'"}' | jq -r '.id')
-ANALYSIS_B=$(./kb-cli add-entity "Analysis B" "..." '{"parent_stage":"'$STAGE2_ID'"}' | jq -r '.id')
+ANALYSIS_A=$(./kb-cli add "Analysis A" "..." '{"parent_stage":"'$STAGE2_ID'"}' | jq -r '.id')
+ANALYSIS_B=$(./kb-cli add "Analysis B" "..." '{"parent_stage":"'$STAGE2_ID'"}' | jq -r '.id')
 
 # Both execute in parallel
 # ... wait for both ...
 
 # Fan in: Combine results before continuing pipeline
 COMBINED=$(combine_results $ANALYSIS_A $ANALYSIS_B)
-./kb-cli update-entity $STAGE2_ID "$COMBINED" "$COMBINED" '{"status":"completed"}'
+./kb-cli update $STAGE2_ID "$COMBINED" "$COMBINED" '{"status":"completed"}'
 
 # Continue to Stage 3
 ```
@@ -858,14 +858,14 @@ COMBINED=$(combine_results $ANALYSIS_A $ANALYSIS_B)
 # Pipeline can branch based on stage output
 
 # Stage 2 completes
-STAGE2_OUTPUT=$(./kb-cli get-entity $STAGE2_ID | jq -r '.content')
+STAGE2_OUTPUT=$(./kb-cli get $STAGE2_ID | jq -r '.content')
 
 # Check condition (simplified - would use LLM)
 if echo "$STAGE2_OUTPUT" | grep -qi "high risk"; then
   # Branch to risk mitigation sub-pipeline
   echo "High risk detected, branching to mitigation pipeline"
   
-  MITIGATION_PIPELINE=$(./kb-cli add-entity \
+  MITIGATION_PIPELINE=$(./kb-cli add \
     "Sub-Pipeline: Risk Mitigation" \
     "..." \
     '{"type":"pipeline","parent_pipeline":"'$PIPELINE_ID'","branch_condition":"high_risk"}' \
@@ -890,7 +890,7 @@ function save_checkpoint() {
   local current_stage=$2
   
   # Mark as checkpointed
-  ./kb-cli update-entity $pipeline_id "" "" \
+  ./kb-cli update $pipeline_id "" "" \
     '{"status":"checkpointed","checkpoint_stage":'$current_stage',"checkpoint_time":"'$(date -Iseconds)'"}'
   
   echo "Pipeline checkpointed at stage $current_stage"
@@ -900,12 +900,12 @@ function resume_from_checkpoint() {
   local pipeline_id=$1
   
   # Get checkpoint info
-  local checkpoint_stage=$(./kb-cli get-entity $pipeline_id | jq -r '.metadata.checkpoint_stage')
+  local checkpoint_stage=$(./kb-cli get $pipeline_id | jq -r '.metadata.checkpoint_stage')
   
   echo "Resuming pipeline from stage $checkpoint_stage"
   
   # Find stage entity
-  local stage_id=$(./kb-cli get-links-from $pipeline_id | \
+  local stage_id=$(./kb-cli links $pipeline_id | \
     jq -r '.[] | select(.metadata.stage_num == '$checkpoint_stage') | .id' | head -1)
   
   # Resume execution
@@ -1111,6 +1111,192 @@ if __name__ == "__main__":
 
 10. **Pipeline Versioning**: Track pipeline definitions in KB to evolve them over time.
 
+## Evaluation Loops: Evaluate → Reiterate
+
+The Pipeline Manager supports **stage-level evaluation loops**. After each stage (or at the end), it evaluates output quality against acceptance criteria. If the output is insufficient, it can loop back to re-execute stages with refined prompts, inject corrective stages, or roll back.
+
+### How It Works
+
+```
+Pipeline: "Research → Analyze → Decide → Train"
+
+Stage 1: Research ──────────── EXECUTE
+  Output: "Found 3 patterns but unclear on trade-offs"
+  ★ EVALUATE ★
+  ├── Confidence: 0.45 (too vague)
+  ├── Gaps: ["trade-off analysis missing"]
+  └── Decision: REITERATE Stage 1 with refined prompt
+
+Stage 1 (iteration 2): Research ── RE-EXECUTE (refined)
+  Output: "Pattern A: +latency -cost. Pattern B: +throughput -complexity. Pattern C: balanced."
+  ★ EVALUATE ★
+  ├── Confidence: 0.8 ✓
+  └── Decision: PROCEED to Stage 2
+
+Stage 2: Analyze ──────────── EXECUTE
+  Output: "Pattern B conflicts with existing architecture"
+  ★ EVALUATE ★
+  ├── Contradictions: ["Pattern B recommended but incompatible"]
+  └── Decision: INJECT corrective stage
+
+Stage 2b: Resolve Conflict ─── EXECUTE (injected)
+  Output: "Pattern A is best fit given constraints"
+  ★ EVALUATE ★
+  └── Decision: PROCEED to Stage 3
+
+Stage 3: Decide ────────────── EXECUTE
+Stage 4: Train ─────────────── EXECUTE
+  ★ FINAL EVALUATE ★
+  └── Confidence: 0.85 → CONVERGE ✓
+```
+
+### Evaluate-Reiterate Pattern
+
+```bash
+#!/bin/bash
+# pipeline_with_evaluation.sh — Pipeline Manager with stage-level eval loops
+
+PIPELINE_NAME=$1
+MAX_STAGE_RETRIES=${2:-3}
+MIN_CONFIDENCE=${3:-0.7}
+
+# Create pipeline
+PIPELINE_ID=$(./kb-cli add \
+  "Pipeline: $PIPELINE_NAME" \
+  "Sequential pipeline with evaluation loops" \
+  '{"type":"pipeline","strategy":"evaluated_sequential","status":"stage_1"}' \
+  | jq -r '.id')
+
+# Create evaluation tracker
+EVAL_ID=$(./kb-cli add-eval $PIPELINE_ID 10 \
+  '{"min_confidence":'$MIN_CONFIDENCE',"max_gaps":1,"max_contradictions":0}' \
+  | jq -r '.eval_id')
+
+# Define stages
+STAGES=("researcher:Research" "code-analyzer:Analyze" "decision-log:Decide" "learning-path:Train")
+STAGE_IDS=()
+ACCUMULATED=""
+
+for i in "${!STAGES[@]}"; do
+  IFS=':' read -r agent task <<< "${STAGES[$i]}"
+  STAGE_NUM=$((i + 1))
+  RETRY=0
+  STAGE_PASSED=false
+  
+  while [ $RETRY -lt $MAX_STAGE_RETRIES ] && [ "$STAGE_PASSED" != "true" ]; do
+    RETRY_LABEL=""
+    [ $RETRY -gt 0 ] && RETRY_LABEL=" (retry $RETRY)"
+    
+    echo "=== Stage $STAGE_NUM: $task$RETRY_LABEL ==="
+    
+    # Create/update stage entity
+    if [ $RETRY -eq 0 ]; then
+      STAGE_ID=$(./kb-cli add \
+        "Stage $STAGE_NUM: $task" \
+        "Agent: $agent" \
+        '{"type":"pipeline_stage","stage_num":'$STAGE_NUM',"agent":"'$agent'","status":"executing","retry":'$RETRY'}' \
+        | jq -r '.id')
+      ./kb-cli link $PIPELINE_ID $STAGE_ID "stage"
+      STAGE_IDS+=($STAGE_ID)
+    else
+      # Re-execute same stage with refined prompt
+      ./kb-cli update $STAGE_ID "" \
+        "RETRY $RETRY: Previous attempt insufficient. Refine based on: $EVAL_REASON" \
+        '{"status":"executing","retry":'$RETRY'}'
+    fi
+    
+    # Execute stage with agent
+    # ... (agent execution with accumulated context) ...
+    STAGE_OUTPUT=$(./kb-cli export $STAGE_ID | head -80)
+    
+    # ★ EVALUATE stage output ★
+    CONFIDENCE=$(assess_stage_output "$STAGE_OUTPUT" "$task")
+    GAPS=$(identify_stage_gaps "$STAGE_OUTPUT" "$task")
+    CONTRADICTIONS=$(check_contradictions "$STAGE_OUTPUT" "$ACCUMULATED")
+    
+    EVAL_ITERATION=$((STAGE_NUM * 10 + RETRY))
+    ./kb-cli update-eval $EVAL_ID \
+      '{"confidence":'$CONFIDENCE',"gaps":'$GAPS',"contradictions":'$CONTRADICTIONS',"iteration":'$EVAL_ITERATION'}'
+    
+    CONVERGENCE=$(./kb-cli converged $EVAL_ID)
+    CONVERGED=$(echo "$CONVERGENCE" | jq -r '.converged')
+    EVAL_REASON=$(echo "$CONVERGENCE" | jq -r '.reason')
+    
+    HAS_CONTRADICTIONS=$(echo "$CONVERGENCE" | jq -r '.contradictions | length')
+    HAS_GAPS=$(echo "$CONVERGENCE" | jq -r '.gaps | length')
+    CONF=$(echo "$CONVERGENCE" | jq -r '.confidence')
+    
+    # Decision logic
+    if [ "$CONVERGED" == "true" ] || (( $(echo "$CONF >= $MIN_CONFIDENCE" | bc -l) )); then
+      echo "  ✓ Stage $STAGE_NUM passed (confidence: $CONF)"
+      STAGE_PASSED=true
+      ACCUMULATED="$ACCUMULATED\n\n=== Stage $STAGE_NUM ===\n$STAGE_OUTPUT"
+      ./kb-cli update $STAGE_ID "" "" '{"status":"completed"}'
+      
+    elif [ "$HAS_CONTRADICTIONS" -gt 0 ] && [ $RETRY -lt $MAX_STAGE_RETRIES ]; then
+      echo "  ✗ Contradictions found — injecting resolution stage"
+      
+      # INJECT a corrective stage
+      RESOLVE_ID=$(./kb-cli add \
+        "Stage ${STAGE_NUM}b: Resolve Contradictions" \
+        "Resolve: $(echo "$CONVERGENCE" | jq -r '.contradictions | join(", ")')" \
+        '{"type":"pipeline_stage","stage_num":'$STAGE_NUM'.5,"agent":"researcher","injected":true}' \
+        | jq -r '.id')
+      ./kb-cli link $PIPELINE_ID $RESOLVE_ID "stage"
+      ./kb-cli link $STAGE_ID $RESOLVE_ID "feeds"
+      
+      # Execute resolution stage, then re-evaluate
+      # ... execute resolution ...
+      RETRY=$((RETRY + 1))
+      
+    else
+      echo "  ✗ Stage $STAGE_NUM insufficient (confidence: $CONF) — retrying"
+      RETRY=$((RETRY + 1))
+    fi
+  done
+  
+  if [ "$STAGE_PASSED" != "true" ]; then
+    echo "⚠ Stage $STAGE_NUM failed after $MAX_STAGE_RETRIES retries. Escalating."
+    ./kb-cli update-eval $EVAL_ID \
+      '{"status":"diverged","decision":"escalate","rationale":"Stage '$STAGE_NUM' could not pass after '$MAX_STAGE_RETRIES' retries"}'
+    exit 1
+  fi
+done
+
+# Final pipeline evaluation
+./kb-cli update $PIPELINE_ID "" "" '{"status":"completed"}'
+./kb-cli update-eval $EVAL_ID '{"status":"converged","decision":"converge"}'
+
+echo ""
+echo "=== Pipeline Complete ==="
+./kb-cli converged $EVAL_ID
+```
+
+### Stage Evaluation Actions
+
+| Evaluation Result | Action | Example |
+|---|---|---|
+| High confidence, no gaps | **PROCEED** to next stage | Research comprehensive, move to analysis |
+| Low confidence, same stage | **REITERATE** with refined prompt | "Be more specific about trade-offs" |
+| Contradiction with prior stage | **INJECT** resolution stage | New stage to reconcile conflicting data |
+| Persistent low confidence | **ROLL BACK** to earlier stage | Re-research with different angles |
+| Max retries exhausted | **ESCALATE** to human or coordinator | Flag for manual review |
+
+### Pipeline Evaluation Modes
+
+```bash
+# Mode 1: Evaluate after every stage (thorough)
+./kb-cli add-eval $PIPELINE_ID 20 '{"min_confidence":0.7,"max_gaps":1,"max_contradictions":0}'
+
+# Mode 2: Evaluate only at end (fast)
+# Skip per-stage eval, only check final output
+./kb-cli add-eval $PIPELINE_ID 3 '{"min_confidence":0.8,"max_gaps":0,"max_contradictions":0}'
+
+# Mode 3: Evaluate at checkpoints (balanced)
+# Evaluate after stages 2 and 4 only
+CHECKPOINT_STAGES=(2 4)
+```
+
 ## Comparison with Other Coordinators
 
 | Aspect | Hierarchical Planner | Swarm Coordinator | **Pipeline Manager** |
@@ -1172,3 +1358,65 @@ execute_stage 4  # Continues from either path
 The Pipeline Manager provides clean, traceable orchestration through sequential stage execution. It excels at linear workflows where each stage enriches and validates the previous stage's output. The accumulated context pattern ensures that final stages have full visibility into all decisions and analysis that came before.
 
 For problems requiring parallel exploration, use the **Swarm Coordinator**. For complex problems with interdependent subtasks, use the **Hierarchical Planner**.
+
+## Recursive Agent Spawning
+
+Pipeline stage agents can spawn sub-agents when a stage's work is too complex for a single agent. The pipeline pauses at that stage until all sub-agents complete, then continues with their combined output.
+
+### How It Works
+
+```
+Pipeline: "Material Selection for Neutron Shielding"
+Stage 1: Research (researcher)
+  └── [spawns 3 parallel sub-researchers for different material families]
+      ├── Sub-agent: Tungsten carbide composites (depth 2)
+      ├── Sub-agent: Borated steel alloys (depth 2)
+      └── Sub-agent: Advanced ceramics (depth 2)
+  └── [waits for all 3, synthesizes into stage output]
+  ↓
+Stage 2: Analysis (code-analyzer) — single agent, sufficient
+  ↓
+Stage 3: Decision (decision-log) — single agent, MCDA scoring
+```
+
+### Stage-Level Spawning
+
+```python
+from kb import KnowledgeBase
+kb = KnowledgeBase()
+
+# Stage agent discovers it needs to explore multiple branches
+budget = kb.check_spawn_budget(my_stage_entity_id)
+
+if budget['can_spawn'] and need_parallel_exploration:
+    # Spawn sub-agents for parallel exploration within this stage
+    subs = []
+    for material_family in ['tungsten', 'borated_steel', 'ceramics']:
+        result = kb.spawn_sub_entity(my_stage_entity_id,
+            f'Research: {material_family} for neutron shielding',
+            f'Detailed analysis of {material_family} properties, costs, manufacturability',
+            agent_type='researcher')
+        if result['spawned']:
+            subs.append(result['entity_id'])
+    
+    # Sub-agents execute (in parallel via copilot-cli task tool)
+    # After completion, synthesize their findings into this stage's output
+    for sub_id in subs:
+        sub_claims = kb.list_claims(entity_id=sub_id)
+        # Merge sub-claims into stage entity...
+    
+    # Stage continues to produce its output for the next stage
+```
+
+### Spawning a Sub-Pipeline
+
+A stage can spawn an entire sub-pipeline for structured sub-problems:
+
+```python
+result = kb.spawn_sub_entity(my_stage_entity_id,
+    'Sub-pipeline: Evaluate tungsten composite variants',
+    'Stage 1: Literature review → Stage 2: Property comparison → Stage 3: Cost analysis',
+    agent_type='pipeline_manager')
+```
+
+See the **Swarm Coordinator** doc for the full recursive spawning prompt template, budget enforcement details, and cross-coordinator spawning patterns.

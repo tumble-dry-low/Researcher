@@ -83,7 +83,7 @@ Based on synthesis:
 
 ```bash
 # Create swarm coordination entity
-SWARM_ID=$(./kb-cli add-entity \
+SWARM_ID=$(./kb-cli add \
   "Swarm: GraphQL Adoption Decision" \
   "Parallel exploration of GraphQL adoption from multiple angles" \
   '{"type":"swarm","strategy":"parallel_exploration","status":"spawning","swarm_size":12,"time_limit_minutes":20}' \
@@ -110,7 +110,7 @@ declare -a AGENT_IDS
 for angle in "${ANGLES[@]}"; do
   IFS=':' read -r agent query <<< "$angle"
   
-  AGENT_ID=$(./kb-cli add-entity \
+  AGENT_ID=$(./kb-cli add \
     "Explore: $query" \
     "Assigned to $agent for parallel exploration" \
     '{"type":"exploration","parent_swarm":"'$SWARM_ID'","agent":"'$agent'","status":"spawned"}' \
@@ -119,7 +119,7 @@ for angle in "${ANGLES[@]}"; do
   AGENT_IDS+=($AGENT_ID)
   
   # Link to swarm
-  ./kb-cli add-link $SWARM_ID $AGENT_ID "spawns"
+  ./kb-cli link $SWARM_ID $AGENT_ID "spawns"
   
   # Create task (will execute in parallel)
   ./kb-cli add-task \
@@ -152,14 +152,14 @@ while true; do
   # Count completions
   COMPLETED=0
   for agent_id in "${AGENT_IDS[@]}"; do
-    STATUS=$(./kb-cli get-entity $agent_id | jq -r '.metadata.status // "spawned"')
+    STATUS=$(./kb-cli get $agent_id | jq -r '.metadata.status // "spawned"')
     if [ "$STATUS" == "completed" ]; then
       ((COMPLETED++))
     fi
   done
   
   # Update swarm progress
-  ./kb-cli update-entity $SWARM_ID "" "" \
+  ./kb-cli update $SWARM_ID "" "" \
     '{"completion_count":'$COMPLETED',"elapsed_minutes":'$(($ELAPSED/60))'}'
   
   # Check if enough completed (80% threshold)
@@ -180,10 +180,10 @@ done
 # Collect all completed agent findings
 declare -A FINDINGS
 for agent_id in "${AGENT_IDS[@]}"; do
-  STATUS=$(./kb-cli get-entity $agent_id | jq -r '.metadata.status')
+  STATUS=$(./kb-cli get $agent_id | jq -r '.metadata.status')
   if [ "$STATUS" == "completed" ]; then
-    TITLE=$(./kb-cli get-entity $agent_id | jq -r '.title')
-    SUMMARY=$(./kb-cli export-entity $agent_id | head -30)
+    TITLE=$(./kb-cli get $agent_id | jq -r '.title')
+    SUMMARY=$(./kb-cli export $agent_id | head -30)
     FINDINGS["$agent_id"]="$TITLE: $SUMMARY"
   fi
 done
@@ -240,7 +240,7 @@ echo "Recommendation: $RECOMMENDATION (confidence: $CONFIDENCE)"
 
 ```bash
 # Create synthesis entity
-SYNTHESIS_ID=$(./kb-cli add-entity \
+SYNTHESIS_ID=$(./kb-cli add \
   "Swarm Synthesis: GraphQL Adoption" \
   "$(cat <<EOF
 # Swarm Exploration Results
@@ -288,11 +288,11 @@ EOF
   | jq -r '.id')
 
 # Link synthesis to swarm
-./kb-cli add-link $SWARM_ID $SYNTHESIS_ID "synthesizes_to"
+./kb-cli link $SWARM_ID $SYNTHESIS_ID "synthesizes_to"
 
 # Link all findings to synthesis
 for agent_id in "${!FINDINGS[@]}"; do
-  ./kb-cli add-link $agent_id $SYNTHESIS_ID "contributes_to"
+  ./kb-cli link $agent_id $SYNTHESIS_ID "contributes_to"
 done
 
 echo "Synthesis complete: $SYNTHESIS_ID"
@@ -306,7 +306,7 @@ echo "Synthesis complete: $SYNTHESIS_ID"
 
 ```bash
 # Create exploration swarm
-SWARM_ID=$(./kb-cli add-entity \
+SWARM_ID=$(./kb-cli add \
   "Swarm: Performance Investigation" \
   "Parallel exploration of potential performance bottlenecks" \
   '{"type":"swarm","strategy":"broad_exploration","swarm_size":15,"time_limit_minutes":30}' \
@@ -335,13 +335,13 @@ HYPOTHESES=(
 for hypothesis in "${HYPOTHESES[@]}"; do
   IFS=':' read -r agent investigation <<< "$hypothesis"
   
-  AGENT_ID=$(./kb-cli add-entity \
+  AGENT_ID=$(./kb-cli add \
     "Investigate: $investigation" \
     "Explore hypothesis: $investigation" \
     '{"type":"hypothesis","parent_swarm":"'$SWARM_ID'","agent":"'$agent'"}' \
     | jq -r '.id')
   
-  ./kb-cli add-link $SWARM_ID $AGENT_ID "investigates"
+  ./kb-cli link $SWARM_ID $AGENT_ID "investigates"
   
   ./kb-cli add-task \
     "Investigate: $investigation" \
@@ -366,7 +366,7 @@ sleep 1800  # 30 minutes
 
 ```bash
 # Brainstorming swarm
-SWARM_ID=$(./kb-cli add-entity \
+SWARM_ID=$(./kb-cli add \
   "Swarm: Onboarding Innovation" \
   "Divergent thinking - generate diverse onboarding approaches" \
   '{"type":"swarm","strategy":"divergent","swarm_size":20,"mode":"creative"}' \
@@ -412,13 +412,13 @@ function find_consensus() {
   local threshold=$2  # e.g., 0.6 = 60% of agents
   
   # Get all agent findings
-  local agents=$(./kb-cli get-links-from $swarm_id | \
+  local agents=$(./kb-cli links $swarm_id | \
     jq -r '.[] | select(.link_type == "spawns" or .link_type == "investigates") | .id')
   
   # Extract key recommendations (would use LLM for proper extraction)
   declare -A recommendations
   for agent in $agents; do
-    local content=$(./kb-cli export-entity $agent)
+    local content=$(./kb-cli export $agent)
     # Parse recommendations...
     # recommendations["use_caching"]+=1
   done
@@ -445,7 +445,7 @@ function find_conflicts() {
   local swarm_id=$1
   
   # Get all findings
-  local findings=$(./kb-cli get-links-from $swarm_id | jq -r '.[] | .id')
+  local findings=$(./kb-cli links $swarm_id | jq -r '.[] | .id')
   
   # Compare pairs (would use semantic comparison in production)
   for finding1 in $findings; do
@@ -453,7 +453,7 @@ function find_conflicts() {
       if [ "$finding1" != "$finding2" ]; then
         # Check if they contradict
         # If yes, create conflict entity
-        CONFLICT_ID=$(./kb-cli add-entity \
+        CONFLICT_ID=$(./kb-cli add \
           "Conflict: Finding A vs Finding B" \
           "Agents $finding1 and $finding2 have contradictory findings requiring resolution" \
           '{"type":"conflict","finding1":"'$finding1'","finding2":"'$finding2'","status":"unresolved"}' \
@@ -479,12 +479,12 @@ function detect_patterns() {
   local swarm_id=$1
   
   # Get all findings
-  local findings=$(./kb-cli get-links-from $swarm_id | jq -r '.[] | .id')
+  local findings=$(./kb-cli links $swarm_id | jq -r '.[] | .id')
   
   # Analyze for recurring themes (simplified - would use NLP/LLM)
   declare -A themes
   for finding in $findings; do
-    local content=$(./kb-cli export-entity $finding)
+    local content=$(./kb-cli export $finding)
     
     # Extract themes (keywords, topics)
     # themes["performance"]+=1
@@ -499,7 +499,7 @@ function detect_patterns() {
       echo "  - $theme (${themes[$theme]} agents mentioned)"
       
       # Create pattern entity
-      PATTERN_ID=$(./kb-cli add-entity \
+      PATTERN_ID=$(./kb-cli add \
         "Pattern: ${theme} is critical" \
         "Emergent pattern from swarm: $theme mentioned by ${themes[$theme]} agents" \
         '{"type":"pattern","parent_swarm":"'$swarm_id'","mention_count":'${themes[$theme]}'}' \
@@ -522,7 +522,7 @@ function find_gaps() {
   local expected_areas=("performance" "security" "cost" "usability" "maintainability")
   
   # Get actual coverage
-  local findings=$(./kb-cli get-links-from $swarm_id | jq -r '.[] | .id')
+  local findings=$(./kb-cli links $swarm_id | jq -r '.[] | .id')
   
   declare -A coverage
   for area in "${expected_areas[@]}"; do
@@ -530,7 +530,7 @@ function find_gaps() {
   done
   
   for finding in $findings; do
-    local content=$(./kb-cli export-entity $finding | tr '[:upper:]' '[:lower:]')
+    local content=$(./kb-cli export $finding | tr '[:upper:]' '[:lower:]')
     for area in "${expected_areas[@]}"; do
       if echo "$content" | grep -q "$area"; then
         coverage[$area]=$((coverage[$area] + 1))
@@ -563,7 +563,7 @@ find_gaps $SWARM_ID
 
 ```bash
 # Wave 1: Broad exploration (large swarm, short time limit)
-WAVE1_ID=$(./kb-cli add-entity \
+WAVE1_ID=$(./kb-cli add \
   "Wave 1: Broad Exploration" \
   "Initial swarm to map solution space" \
   '{"type":"swarm","wave":1,"swarm_size":20,"time_limit_minutes":10}' \
@@ -574,17 +574,17 @@ WAVE1_ID=$(./kb-cli add-entity \
 # ... synthesize to identify promising directions ...
 
 # Wave 2: Focused deep-dive (smaller swarm, longer time)
-PROMISING=$(./kb-cli get-links-from $WAVE1_ID | \
+PROMISING=$(./kb-cli links $WAVE1_ID | \
   jq -r '.[] | select(.metadata.recommendation == "promising") | .id')
 
-WAVE2_ID=$(./kb-cli add-entity \
+WAVE2_ID=$(./kb-cli add \
   "Wave 2: Deep Dive" \
   "Focused exploration of promising areas from Wave 1" \
   '{"type":"swarm","wave":2,"swarm_size":10,"time_limit_minutes":30,"parent_wave":"'$WAVE1_ID'"}' \
   | jq -r '.id')
 
 for promising_id in $PROMISING; do
-  TOPIC=$(./kb-cli get-entity $promising_id | jq -r '.title')
+  TOPIC=$(./kb-cli get $promising_id | jq -r '.title')
   # Spawn 2-3 agents to deeply explore this promising area
 done
 
@@ -680,7 +680,7 @@ SWARM_SIZE=${2:-10}
 TIME_LIMIT=${3:-15}  # minutes
 
 # Create swarm
-SWARM_ID=$(./kb-cli add-entity \
+SWARM_ID=$(./kb-cli add \
   "Swarm: $QUESTION" \
   "Parallel exploration swarm" \
   '{"type":"swarm","swarm_size":'$SWARM_SIZE',"time_limit_minutes":'$TIME_LIMIT'}' \
@@ -709,14 +709,14 @@ declare -a AGENT_IDS
 for angle in "${ANGLES[@]}"; do
   IFS=':' read -r agent query <<< "$angle"
   
-  AGENT_ID=$(./kb-cli add-entity \
+  AGENT_ID=$(./kb-cli add \
     "Explore: $query" \
     "Swarm member" \
     '{"type":"exploration","parent_swarm":"'$SWARM_ID'","agent":"'$agent'"}' \
     | jq -r '.id')
   
   AGENT_IDS+=($AGENT_ID)
-  ./kb-cli add-link $SWARM_ID $AGENT_ID "spawns"
+  ./kb-cli link $SWARM_ID $AGENT_ID "spawns"
   
   ./kb-cli add-task "Explore: $query" \
     "@$agent $query - return summary" \
@@ -731,7 +731,7 @@ START=$(date +%s)
 LIMIT=$(($TIME_LIMIT * 60))
 
 while [ $(($(date +%s) - $START)) -lt $LIMIT ]; do
-  COMPLETED=$(./kb-cli list-entities | \
+  COMPLETED=$(./kb-cli list | \
     jq -r '.[] | select(.metadata.parent_swarm == "'$SWARM_ID'" and .metadata.status == "completed") | .id' | \
     wc -l)
   
@@ -837,6 +837,171 @@ Multiple waves with different compositions:
 9. **Track Consensus Strength**: 8/10 agree = strong consensus. 5/10 = weak, needs more exploration.
 
 10. **Learn from Patterns**: If same pattern emerges across many swarms, document as organizational principle.
+
+## Evaluation Loops: Evaluate → Respawn
+
+The Swarm Coordinator supports **multi-wave convergence loops**. After synthesizing results, it evaluates consensus strength, identifies gaps and contradictions, and spawns focused follow-up swarms until convergence criteria are met.
+
+### How It Works
+
+```
+Question: "Should we adopt GraphQL?"
+
+Wave 1: Broad Exploration (10 agents)
+├── 10 agents explore diverse angles in parallel
+├── Synthesis: 6/10 agree "yes with caveats"
+├── ★ EVALUATE (iteration 1) ★
+│   ├── Confidence: 0.55 (below 0.7 threshold)
+│   ├── Gaps: ["security implications", "migration cost"]
+│   ├── Contradictions: ["Agent 3 says slow, Agent 7 says fast"]
+│   └── Decision: LOOP → spawn Wave 2
+
+Wave 2: Focused Deep-Dive (4 agents, targets gaps)
+├── Agent A: "GraphQL security attack vectors" (fills gap)
+├── Agent B: "GraphQL migration cost case studies" (fills gap)
+├── Agent C: "GraphQL vs REST performance benchmarks" (resolves contradiction)
+├── Agent D: "GraphQL at our scale — comparable companies" (adds confidence)
+├── ★ EVALUATE (iteration 2) ★
+│   ├── Confidence: 0.82 (above threshold ✓)
+│   ├── Gaps: []
+│   ├── Contradictions: [] (resolved: "fast for reads, slow for complex joins")
+│   └── Decision: CONVERGE ✓
+
+Final Answer: "Adopt GraphQL for read-heavy APIs; keep REST for batch/analytics"
+```
+
+### Evaluate-Respawn Pattern
+
+```bash
+#!/bin/bash
+# swarm_with_convergence.sh — Swarm Coordinator with evaluation loops
+
+QUESTION=$1
+MAX_WAVES=${2:-4}
+MIN_CONFIDENCE=${3:-0.7}
+
+# Create root swarm
+ROOT_SWARM=$(./kb-cli add \
+  "Swarm: $QUESTION" \
+  "Multi-wave convergent swarm" \
+  '{"type":"swarm","strategy":"convergent_exploration","status":"wave_1"}' \
+  | jq -r '.id')
+
+# Create evaluation tracker
+EVAL_ID=$(./kb-cli add-eval $ROOT_SWARM $MAX_WAVES \
+  '{"min_confidence":'$MIN_CONFIDENCE',"max_gaps":2,"max_contradictions":0}' \
+  | jq -r '.eval_id')
+
+WAVE=1
+PREVIOUS_FINDINGS=""
+
+while [ $WAVE -le $MAX_WAVES ]; do
+  echo "=== Wave $WAVE ==="
+  
+  if [ $WAVE -eq 1 ]; then
+    # Wave 1: Broad exploration
+    SWARM_SIZE=8
+    ANGLES=$(generate_broad_angles "$QUESTION" $SWARM_SIZE)
+  else
+    # Subsequent waves: Target gaps and contradictions
+    EVAL_STATE=$(./kb-cli eval $EVAL_ID)
+    GAPS=$(echo "$EVAL_STATE" | jq -r '.gaps')
+    CONTRADICTIONS=$(echo "$EVAL_STATE" | jq -r '.contradictions')
+    
+    SWARM_SIZE=$(echo "$GAPS $CONTRADICTIONS" | jq -r '. | length' | paste -sd+ | bc)
+    SWARM_SIZE=$((SWARM_SIZE > 2 ? SWARM_SIZE : 2))  # minimum 2 agents
+    
+    ANGLES=""
+    # Spawn agents targeting each gap
+    for gap in $(echo "$GAPS" | jq -r '.[]'); do
+      ANGLES="$ANGLES\nresearcher:Deep dive: $gap"
+    done
+    # Spawn agents to resolve each contradiction
+    for contradiction in $(echo "$CONTRADICTIONS" | jq -r '.[]'); do
+      ANGLES="$ANGLES\nresearcher:Resolve: $contradiction"
+    done
+  fi
+  
+  # Create wave entity
+  WAVE_ID=$(./kb-cli add \
+    "Wave $WAVE: $([ $WAVE -eq 1 ] && echo 'Broad Exploration' || echo 'Focused Follow-up')" \
+    "Swarm wave $WAVE with $SWARM_SIZE agents" \
+    '{"type":"swarm","wave":'$WAVE',"parent_swarm":"'$ROOT_SWARM'","swarm_size":'$SWARM_SIZE'}' \
+    | jq -r '.id')
+  ./kb-cli link $ROOT_SWARM $WAVE_ID "wave"
+  
+  # Spawn and execute agents (same as standard swarm)
+  # ... spawn $SWARM_SIZE agents ...
+  # ... wait for completion ...
+  # ... synthesize findings ...
+  
+  WAVE_FINDINGS=$(./kb-cli export $WAVE_ID | head -100)
+  PREVIOUS_FINDINGS="$PREVIOUS_FINDINGS\n\n=== Wave $WAVE ===\n$WAVE_FINDINGS"
+  
+  # ★ EVALUATE ★
+  echo "--- Evaluating Wave $WAVE ---"
+  
+  # Assess cumulative findings (all waves combined)
+  CONFIDENCE=$(assess_confidence "$PREVIOUS_FINDINGS")
+  GAPS=$(identify_gaps "$PREVIOUS_FINDINGS" "$QUESTION")
+  CONTRADICTIONS=$(identify_contradictions "$PREVIOUS_FINDINGS")
+  
+  ./kb-cli update-eval $EVAL_ID \
+    '{"confidence":'$CONFIDENCE',"gaps":'$GAPS',"contradictions":'$CONTRADICTIONS',"iteration":'$WAVE'}'
+  
+  # Check convergence
+  RESULT=$(./kb-cli converged $EVAL_ID)
+  CONVERGED=$(echo "$RESULT" | jq -r '.converged')
+  
+  if [ "$CONVERGED" == "true" ]; then
+    REASON=$(echo "$RESULT" | jq -r '.reason')
+    echo "✓ Converged after $WAVE waves: $REASON"
+    ./kb-cli update-eval $EVAL_ID \
+      '{"status":"converged","decision":"converge","rationale":"'$REASON'"}'
+    break
+  else
+    echo "✗ Not converged: $(echo "$RESULT" | jq -r '.reason')"
+    echo "  Spawning Wave $((WAVE + 1)) to address gaps..."
+    ./kb-cli update-eval $EVAL_ID '{"decision":"loop"}'
+  fi
+  
+  WAVE=$((WAVE + 1))
+done
+
+# Final synthesis across all waves
+if [ "$CONVERGED" != "true" ]; then
+  echo "⚠ Max waves ($MAX_WAVES) reached without convergence. Escalating."
+  ./kb-cli update-eval $EVAL_ID \
+    '{"status":"max_iterations","decision":"escalate","rationale":"Could not converge in '$MAX_WAVES' waves"}'
+fi
+
+echo ""
+echo "=== Swarm Complete ==="
+echo "Waves: $WAVE"
+./kb-cli converged $EVAL_ID
+```
+
+### Wave Sizing Strategy
+
+| Wave | Purpose | Size | Time Limit | Composition |
+|------|---------|------|------------|-------------|
+| 1 | Broad exploration | 8-12 | 15 min | 50% researcher, 30% analyzer, 20% other |
+| 2 | Gap filling | 2-4 per gap | 20 min | Targeted to gap type |
+| 3 | Contradiction resolution | 1-2 per contradiction | 25 min | Multiple perspectives on same question |
+| 4+ | Deep validation | 2-3 | 30 min | Highest expertise agents |
+
+### Convergence Criteria Presets
+
+```bash
+# Quick decision (lower bar)
+./kb-cli add-eval $SWARM_ID 3 '{"min_confidence":0.6,"max_gaps":3,"max_contradictions":1}'
+
+# Thorough research (higher bar)
+./kb-cli add-eval $SWARM_ID 6 '{"min_confidence":0.85,"max_gaps":0,"max_contradictions":0}'
+
+# Critical decision (strict)
+./kb-cli add-eval $SWARM_ID 8 '{"min_confidence":0.9,"max_gaps":0,"max_contradictions":0}'
+```
 
 ## Example: Production-Ready Swarm Script
 
@@ -1050,7 +1215,7 @@ if __name__ == "__main__":
     print(f"  Question: {question}")
     print(f"  Agents: {completed}/{swarm_size}")
     print(f"  Synthesis: {synthesis_id}")
-    print(f"\nView results: ./kb-cli export-entity {synthesis_id}")
+    print(f"\nView results: ./kb-cli export {synthesis_id}")
 ```
 
 ## Conclusion
@@ -1058,3 +1223,166 @@ if __name__ == "__main__":
 The Swarm Coordinator enables emergent, bottom-up problem solving through massive parallelization. It excels at uncertain, exploratory problems where the best approach isn't known upfront. By spawning many agents to explore diverse angles, it builds consensus through independent investigation and identifies patterns that wouldn't be visible from a single perspective.
 
 For structured problems with known decomposition, use the **Hierarchical Planner**. For linear sequential workflows, use the **Pipeline Manager**.
+
+## Recursive Agent Spawning
+
+Any swarm agent can itself act as a coordinator — decomposing its sub-problem, planning, and spawning further sub-agents. This enables arbitrary-depth research trees where complexity is explored as deeply as needed.
+
+### How It Works
+
+```
+Root Question: "How to improve our agent system?"
+├── Swarm Agent 1: "Orchestration Patterns"
+│   ├── [researches broadly, finds 8 patterns]
+│   ├── [decides LangGraph and AutoGen need deeper dives]
+│   ├── Sub-Agent 1a: "LangGraph state machines" (spawned)
+│   │   └── Sub-Agent 1a-i: "LangGraph vs Pipeline Manager" (spawned)
+│   └── Sub-Agent 1b: "AutoGen group chat" (spawned)
+├── Swarm Agent 2: "Memory Architecture"
+│   └── [single-level — sufficient depth reached]
+└── Swarm Agent 3: "Verification Patterns"
+    ├── Sub-Agent 3a: "Atomic claim decomposition" (spawned)
+    └── Sub-Agent 3b: "Self-consistency sampling" (spawned)
+```
+
+### Budget Enforcement
+
+Recursive spawning uses budget controls to prevent runaway growth:
+
+```python
+from kb import KnowledgeBase
+kb = KnowledgeBase()
+
+# Check if this agent can spawn sub-agents
+budget = kb.check_spawn_budget(my_entity_id, max_depth=4, max_total=50)
+# Returns: {can_spawn: true, current_depth: 1, remaining_depth: 3, remaining_budget: 43}
+
+# Spawn with automatic budget enforcement
+result = kb.spawn_sub_entity(
+    parent_id=my_entity_id,
+    title="Deep dive: LangGraph state machines",
+    content="Research question for sub-agent...",
+    agent_type="researcher",
+    max_depth=4, max_total=50
+)
+# Returns: {spawned: true, entity_id: "abc123", depth: 2, budget: {...}}
+# Or: {spawned: false, reason: "Depth limit reached: depth 4/4, tree size 50/50"}
+```
+
+### Agent Prompt Template for Recursive Capability
+
+Include this in every swarm agent's prompt to give it recursive spawning ability:
+
+```
+You are a research agent with entity ID: {entity_id}, part of a larger research tree.
+
+RECURSIVE SPAWNING: If your assigned topic is too broad or you discover sub-questions
+that need dedicated investigation, you CAN spawn sub-agents:
+
+1. Check your budget:
+   budget = kb.check_spawn_budget('{entity_id}')
+   If budget['can_spawn'] is False, you must work within your own scope.
+
+2. Spawn sub-agents for focused sub-questions:
+   result = kb.spawn_sub_entity('{entity_id}', 'Sub-question title',
+       'Description of what to research', agent_type='researcher')
+
+3. Get context about the broader research tree:
+   ctx = kb.get_spawn_context('{entity_id}')
+   # Shows: parent findings, sibling agents, your claims so far
+
+WHEN TO SPAWN vs RESEARCH DIRECTLY:
+- Spawn when: a sub-question needs 3+ searches, or is tangential to your main focus
+- Research directly when: a quick search answers it, or it's core to your assignment
+- Never spawn if budget is exhausted — synthesize what you have instead
+
+After spawning, wait for sub-agent results (they write to KB), then synthesize
+their findings with your own into your entity's content.
+```
+
+### CLI Commands
+
+```bash
+# Check spawn budget before spawning
+./kb-cli budget <entity_id> [max_depth] [max_total]
+
+# Spawn a sub-agent (enforces budget)
+./kb-cli spawn <parent_id> "Sub-question" "Description" researcher '{}' 4 50
+
+# Get context for a spawned agent (parent findings, siblings)
+./kb-cli context <entity_id>
+```
+
+### Cross-Coordinator Recursive Spawning
+
+A swarm agent can spawn not just researcher sub-agents, but entire sub-coordinators:
+
+```python
+# A swarm agent discovers it needs to compare 5 alternatives → spawns a Pipeline
+result = kb.spawn_sub_entity(my_entity_id,
+    'Pipeline: Compare shielding materials',
+    'Stage 1: gather properties → Stage 2: score → Stage 3: sensitivity analysis',
+    agent_type='pipeline_manager')
+
+# A swarm agent finds a question needs structured decomposition → spawns a Planner
+result = kb.spawn_sub_entity(my_entity_id,
+    'Plan: Full lifecycle analysis of HTS magnets',
+    'Decompose into manufacturing, operations, maintenance, decommissioning',
+    agent_type='hierarchical_planner')
+
+# A swarm agent hits an uncertain sub-question → spawns a mini-Swarm
+result = kb.spawn_sub_entity(my_entity_id,
+    'Mini-swarm: Is REBCO or Bi-2212 better for compact tokamaks?',
+    'Explore from materials science, cost, and engineering perspectives',
+    agent_type='swarm_coordinator')
+```
+
+The `agent_type` metadata tells the operator (or the copilot-cli orchestrator) which coordination pattern to apply when executing that sub-entity.
+
+---
+
+## Verification & Grounding Integration
+
+### IRCoT: Interleaved Retrieval with Chain-of-Thought
+
+Each swarm agent should interleave search with reasoning rather than searching once and synthesizing. After each claim is formulated, search again to verify or deepen:
+
+```
+For each research step:
+  1. Formulate a claim from current understanding
+  2. Search KB: ./kb-cli verify <claim_id>
+  3. If unverified → web search for corroboration
+  4. If contradicted → note contradiction, search for resolution
+  5. Refine claim based on new evidence
+  6. Repeat until claim is grounded
+```
+
+### FRONT: Quote-First-Then-Cite
+
+Before generating claims, extract verbatim quotes from sources:
+
+```bash
+# Step 1: Add source
+source_id=$(./kb-cli add-source "https://..." "Title" "Full snippet text" | jq -r '.id')
+
+# Step 2: Extract quotable passages
+./kb-cli quote $source_id
+
+# Step 3: Create grounded claims from specific quotes
+./kb-cli claim-from-quote "The exact quote from the source" $source_id $entity_id "Your derived claim text"
+```
+
+### Self-Consistency Grading
+
+After claims are collected, use self-consistency sampling for more reliable grades:
+
+```bash
+# Grade a single claim with 7 independent evaluations
+./kb-cli grade-sc <claim_id> 7
+
+# Grade all claims for an entity
+./kb-cli grade-sc <entity_id> 5
+
+# Verify all claims against KB (and optionally web)
+./kb-cli qa <entity_id>
+```

@@ -1,3 +1,11 @@
+Metadata-Version: 2.4
+Name: researcher-kb
+Version: 0.1.0
+Summary: Multi-agent research orchestration system
+License: MIT
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+
 # Researcher 🔬
 
 A multi-agent research orchestration system. Agents add information via simple CLI commands — the system manages storage, linking, verification, and coordination automatically.
@@ -151,10 +159,6 @@ TRACES & PERSPECTIVES                             EMBEDDINGS
 - Python 3.7+
 - SQLite (built-in)
 - Optional: `sqlite-vec` for vector search (falls back to FTS5 gracefully)
-
-## Installation
-
-See [INSTALL.md](INSTALL.md).
 
 ## License
 

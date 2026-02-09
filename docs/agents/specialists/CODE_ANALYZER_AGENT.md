@@ -47,7 +47,7 @@ Document system architecture by analyzing codebase structure and relationships.
 
 # 1. Analyze entry points (main, server startup, etc.)
 ENTRY_CONTENT=$(analyze_entry_points)
-ENTRY_ID=$(./kb-cli add-entity \
+ENTRY_ID=$(./kb-cli add \
     "System Entry Points" \
     "$ENTRY_CONTENT" \
     '{"type":"component","category":"entry_point","files":3}' | jq -r '.id')
@@ -55,32 +55,32 @@ ENTRY_ID=$(./kb-cli add-entity \
 # 2. Extract major components
 for component in $(find_major_components); do
     COMP_CONTENT=$(analyze_component "$component")
-    COMP_ID=$(./kb-cli add-entity \
+    COMP_ID=$(./kb-cli add \
         "Component: $component" \
         "$COMP_CONTENT" \
         "{\"type\":\"component\",\"loc\":$LOC,\"dependencies\":$DEPS}" | jq -r '.id')
     
     # Link to entry point if relevant
-    ./kb-cli add-link "$ENTRY_ID" "$COMP_ID" "contains"
+    ./kb-cli link "$ENTRY_ID" "$COMP_ID" "contains"
 done
 
 # 3. Map component relationships
 for comp_pair in $(find_dependencies); do
     FROM_ID=$(get_entity_by_name "$comp_pair_from")
     TO_ID=$(get_entity_by_name "$comp_pair_to")
-    ./kb-cli add-link "$FROM_ID" "$TO_ID" "depends_on"
+    ./kb-cli link "$FROM_ID" "$TO_ID" "depends_on"
 done
 
 # 4. Extract data flow patterns
 DATA_FLOW=$(analyze_data_flow)
-FLOW_ID=$(./kb-cli add-entity \
+FLOW_ID=$(./kb-cli add \
     "Data Flow Patterns" \
     "$DATA_FLOW" \
     '{"type":"pattern","category":"data_flow"}' | jq -r '.id')
 
 # 5. Identify architectural patterns
 for pattern in $(detect_patterns); do
-    PATTERN_ID=$(./kb-cli add-entity \
+    PATTERN_ID=$(./kb-cli add \
         "Pattern: $pattern" \
         "$(describe_pattern $pattern)" \
         "{\"type\":\"pattern\",\"occurrences\":$COUNT}" | jq -r '.id')
@@ -88,12 +88,12 @@ for pattern in $(detect_patterns); do
     # Link components implementing this pattern
     for impl in $(find_implementations "$pattern"); do
         IMPL_ID=$(get_entity_by_name "$impl")
-        ./kb-cli add-link "$IMPL_ID" "$PATTERN_ID" "implements"
+        ./kb-cli link "$IMPL_ID" "$PATTERN_ID" "implements"
     done
 done
 
 # 6. Generate architecture visualization
-./kb-cli visualize > architecture.dot
+./kb-cli graph > architecture.dot
 dot -Tpng architecture.dot > architecture.png
 
 # 7. Generate architecture summary
@@ -129,7 +129,7 @@ Identify, categorize, and prioritize technical debt items with impact analysis.
 # 1. Scan for code smells
 for smell in $(run_linter | filter_issues); do
     SMELL_CONTENT=$(format_debt_item "$smell")
-    SMELL_ID=$(./kb-cli add-entity \
+    SMELL_ID=$(./kb-cli add \
         "Debt: $smell_title" \
         "$SMELL_CONTENT" \
         "{\"type\":\"debt\",\"severity\":\"$SEVERITY\",\"file\":\"$FILE\",\"line\":$LINE}" | jq -r '.id')
@@ -144,7 +144,7 @@ done
 
 # 2. Find deprecated code usage
 for deprecated in $(grep_deprecated_usage); do
-    DEP_ID=$(./kb-cli add-entity \
+    DEP_ID=$(./kb-cli add \
         "Deprecated: $deprecated_api" \
         "Usage of deprecated $deprecated_api found in $usage_count locations" \
         "{\"type\":\"debt\",\"category\":\"deprecated\",\"count\":$usage_count}" | jq -r '.id')
@@ -152,21 +152,21 @@ for deprecated in $(grep_deprecated_usage); do
     # Link to components using it
     for usage in $(find_usages "$deprecated_api"); do
         COMP_ID=$(get_component_for_file "$usage")
-        ./kb-cli add-link "$COMP_ID" "$DEP_ID" "related_to"
+        ./kb-cli link "$COMP_ID" "$DEP_ID" "related_to"
     done
 done
 
 # 3. Analyze TODO/FIXME comments
 for todo in $(grep_todos); do
-    TODO_ID=$(./kb-cli add-entity \
+    TODO_ID=$(./kb-cli add \
         "TODO: $todo_summary" \
         "$todo_content" \
         "{\"type\":\"debt\",\"category\":\"todo\",\"file\":\"$file\"}" | jq -r '.id')
 done
 
 # 4. Calculate debt metrics
-TOTAL_DEBT=$(./kb-cli list-entities | jq '[.[] | select(.metadata | fromjson | .type == "debt")] | length')
-HIGH_PRIORITY=$(./kb-cli get-tasks pending | jq '[.[] | select(.metadata | fromjson | .priority == "high")] | length')
+TOTAL_DEBT=$(./kb-cli list | jq '[.[] | select(.metadata | fromjson | .type == "debt")] | length')
+HIGH_PRIORITY=$(./kb-cli tasks pending | jq '[.[] | select(.metadata | fromjson | .priority == "high")] | length')
 
 echo "Technical Debt Summary:"
 echo "- Total items: $TOTAL_DEBT"
@@ -211,20 +211,20 @@ Extract and document API surfaces with usage examples and relationships.
 # 1. Extract REST endpoints
 for endpoint in $(parse_routes); do
     ENDPOINT_CONTENT=$(document_endpoint "$endpoint")
-    ENDPOINT_ID=$(./kb-cli add-entity \
+    ENDPOINT_ID=$(./kb-cli add \
         "API: $method $path" \
         "$ENDPOINT_CONTENT" \
         "{\"type\":\"api\",\"method\":\"$method\",\"path\":\"$path\",\"auth\":\"$auth\"}" | jq -r '.id')
     
     # Link to implementing controller
     CONTROLLER_ID=$(get_controller_for_endpoint "$endpoint")
-    ./kb-cli add-link "$ENDPOINT_ID" "$CONTROLLER_ID" "implemented_by"
+    ./kb-cli link "$ENDPOINT_ID" "$CONTROLLER_ID" "implemented_by"
 done
 
 # 2. Extract function signatures
 for function in $(find_public_functions); do
     FUNC_CONTENT=$(document_function "$function")
-    FUNC_ID=$(./kb-cli add-entity \
+    FUNC_ID=$(./kb-cli add \
         "Function: $function_name" \
         "$FUNC_CONTENT" \
         "{\"type\":\"api\",\"category\":\"function\",\"params\":$param_count}" | jq -r '.id')
@@ -232,7 +232,7 @@ done
 
 # 3. Find API usage patterns
 for pattern in $(analyze_api_usage); do
-    PATTERN_ID=$(./kb-cli add-entity \
+    PATTERN_ID=$(./kb-cli add \
         "Usage Pattern: $pattern_name" \
         "$pattern_description" \
         "{\"type\":\"pattern\",\"category\":\"api_usage\",\"frequency\":$count}" | jq -r '.id')
@@ -240,12 +240,12 @@ for pattern in $(analyze_api_usage); do
     # Link to relevant APIs
     for api in $(get_apis_in_pattern "$pattern"); do
         API_ID=$(get_entity_by_name "$api")
-        ./kb-cli add-link "$PATTERN_ID" "$API_ID" "uses"
+        ./kb-cli link "$PATTERN_ID" "$API_ID" "uses"
     done
 done
 
 # 4. Generate API documentation
-./kb-cli export-entity "$ENDPOINT_ID" > docs/api-reference.md
+./kb-cli export "$ENDPOINT_ID" > docs/api-reference.md
 
 # 5. Create OpenAPI spec from KB
 generate_openapi_from_kb > openapi.yaml
@@ -315,7 +315,7 @@ echo "Starting comprehensive codebase analysis..."
 
 # Initialize KB if needed
 if [ ! -f "kb.db" ]; then
-    ./kb-cli add-entity "Analysis Root" "Codebase analysis started" '{"type":"meta"}'
+    ./kb-cli add "Analysis Root" "Codebase analysis started" '{"type":"meta"}'
 fi
 
 # Phase 1: Structure Analysis
@@ -331,7 +331,7 @@ analyze_structure() {
         COMPLEXITY=$(calculate_complexity "$file")
         
         # Add to KB
-        ./kb-cli add-entity \
+        ./kb-cli add \
             "Module: $MODULE_NAME" \
             "File: $file\nLines: $LOC\nComplexity: $COMPLEXITY" \
             "{\"type\":\"component\",\"file\":\"$file\",\"loc\":$LOC}"
@@ -350,7 +350,7 @@ analyze_dependencies() {
         for dep in $DEPS; do
             DEP_ID=$(get_entity_by_name "$dep")
             if [ -n "$DEP_ID" ]; then
-                ./kb-cli add-link "$FILE_ID" "$DEP_ID" "depends_on"
+                ./kb-cli link "$FILE_ID" "$DEP_ID" "depends_on"
             fi
         done
     done
@@ -362,7 +362,7 @@ detect_patterns() {
     # Singleton pattern
     SINGLETONS=$(grep -r "static getInstance" src | wc -l)
     if [ $SINGLETONS -gt 0 ]; then
-        ./kb-cli add-entity \
+        ./kb-cli add \
             "Pattern: Singleton" \
             "Found $SINGLETONS singleton implementations" \
             "{\"type\":\"pattern\",\"occurrences\":$SINGLETONS}"
@@ -371,7 +371,7 @@ detect_patterns() {
     # Factory pattern
     FACTORIES=$(grep -r "create.*Factory" src | wc -l)
     if [ $FACTORIES -gt 0 ]; then
-        ./kb-cli add-entity \
+        ./kb-cli add \
             "Pattern: Factory" \
             "Found $FACTORIES factory implementations" \
             "{\"type\":\"pattern\",\"occurrences\":$FACTORIES}"
@@ -385,7 +385,7 @@ analyze_debt() {
     TODOS=$(grep -rn "TODO\|FIXME\|HACK" src)
     TODO_COUNT=$(echo "$TODOS" | wc -l)
     
-    ./kb-cli add-entity \
+    ./kb-cli add \
         "Technical Debt Summary" \
         "Found $TODO_COUNT TODO/FIXME items\n\n$TODOS" \
         "{\"type\":\"debt\",\"category\":\"todos\",\"count\":$TODO_COUNT}"
@@ -393,7 +393,7 @@ analyze_debt() {
     # Large functions
     LARGE_FUNCS=$(find_large_functions src)
     for func in $LARGE_FUNCS; do
-        ./kb-cli add-entity \
+        ./kb-cli add \
             "Debt: Large Function - $func" \
             "Function $func exceeds complexity threshold" \
             "{\"type\":\"debt\",\"severity\":\"medium\"}"
@@ -411,7 +411,7 @@ echo "\n=== Analysis Complete ==="
 ./kb-cli stats
 
 # Generate visualization
-./kb-cli visualize > codebase-graph.dot
+./kb-cli graph > codebase-graph.dot
 echo "Visualization saved to codebase-graph.dot"
 echo "Generate PNG: dot -Tpng codebase-graph.dot > codebase-graph.png"
 ```
@@ -448,7 +448,7 @@ $ ./kb-cli stats
   "completion_rate": 14.3
 }
 
-$ ./kb-cli list-entities 5
+$ ./kb-cli list 5
 [
   {"id": "a1b2c3d4", "title": "Module: UserService", "type": "component"},
   {"id": "e5f6g7h8", "title": "Pattern: Repository", "type": "pattern"},
@@ -480,7 +480,7 @@ FILE_PATH="src/auth/AuthService.js"
 GIT_HASH=$(git rev-parse HEAD:$FILE_PATH)
 ANALYSIS_CONTENT=$(analyze_file "$FILE_PATH")
 
-ENTITY_ID=$(./kb-cli add-entity \
+ENTITY_ID=$(./kb-cli add \
     "Component: AuthService" \
     "$ANALYSIS_CONTENT" \
     "{\"type\":\"component\",\"file\":\"$FILE_PATH\",\"git_hash\":\"$GIT_HASH\",\"analyzed_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" | jq -r '.id')
@@ -499,12 +499,12 @@ Check if analysis is outdated before using it:
 echo "Checking for stale analysis..."
 
 # Get all component entities
-COMPONENTS=$(./kb-cli list-entities | jq -r '.[] | select((.metadata | fromjson).type == "component")')
+COMPONENTS=$(./kb-cli list | jq -r '.[] | select((.metadata | fromjson).type == "component")')
 
 STALE_COUNT=0
 
 for component in $(echo "$COMPONENTS" | jq -r '.id'); do
-    ENTITY=$(./kb-cli get-entity "$component")
+    ENTITY=$(./kb-cli get "$component")
     
     FILE=$(echo "$ENTITY" | jq -r '.metadata | fromjson | .file')
     STORED_HASH=$(echo "$ENTITY" | jq -r '.metadata | fromjson | .git_hash')
@@ -527,7 +527,7 @@ for component in $(echo "$COMPONENTS" | jq -r '.id'); do
     else
         echo "⚠️  DELETED: $FILE"
         # Mark as historical
-        ./kb-cli update-entity "$component" \
+        ./kb-cli update "$component" \
             "$(echo "$ENTITY" | jq -r '.title')" \
             "$(echo "$ENTITY" | jq -r '.content')\n\n**[HISTORICAL]** File no longer exists" \
             "{\"status\":\"historical\",\"deleted_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
@@ -548,14 +548,14 @@ Automatically refresh stale entities:
 # auto_refresh.sh - Re-analyze stale components
 
 # Get staleness tasks
-STALE_TASKS=$(./kb-cli get-tasks pending | jq -r '.[] | select((.metadata | fromjson).type == "staleness")')
+STALE_TASKS=$(./kb-cli tasks pending | jq -r '.[] | select((.metadata | fromjson).type == "staleness")')
 
 for task_id in $(echo "$STALE_TASKS" | jq -r '.id'); do
-    TASK=$(./kb-cli get-task "$task_id")
+    TASK=$(./kb-cli tasks "$task_id")
     ENTITY_ID=$(echo "$TASK" | jq -r '.entity_id')
     
     # Get entity details
-    ENTITY=$(./kb-cli get-entity "$ENTITY_ID")
+    ENTITY=$(./kb-cli get "$ENTITY_ID")
     FILE=$(echo "$ENTITY" | jq -r '.metadata | fromjson | .file')
     
     echo "Re-analyzing $FILE..."
@@ -565,7 +565,7 @@ for task_id in $(echo "$STALE_TASKS" | jq -r '.id'); do
     NEW_HASH=$(git rev-parse HEAD:$FILE)
     
     # Update entity with fresh data
-    ./kb-cli update-entity "$ENTITY_ID" \
+    ./kb-cli update "$ENTITY_ID" \
         "$(echo "$ENTITY" | jq -r '.title')" \
         "$NEW_CONTENT" \
         "{\"type\":\"component\",\"file\":\"$FILE\",\"git_hash\":\"$NEW_HASH\",\"analyzed_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"refreshed\":true}"
@@ -596,16 +596,16 @@ if [ -n "$OLD_ENTITY_ID" ]; then
     NEW_HASH=$(git rev-parse HEAD:$FILE_PATH)
     
     # Create new entity
-    NEW_ENTITY_ID=$(./kb-cli add-entity \
+    NEW_ENTITY_ID=$(./kb-cli add \
         "Component: AuthService (v2)" \
         "$NEW_CONTENT" \
         "{\"type\":\"component\",\"file\":\"$FILE_PATH\",\"git_hash\":\"$NEW_HASH\",\"version\":2}" | jq -r '.id')
     
     # Link old to new with "supersedes" relationship
-    ./kb-cli add-link "$NEW_ENTITY_ID" "$OLD_ENTITY_ID" "supersedes"
+    ./kb-cli link "$NEW_ENTITY_ID" "$OLD_ENTITY_ID" "supersedes"
     
     # Mark old as historical
-    ./kb-cli update-entity "$OLD_ENTITY_ID" \
+    ./kb-cli update "$OLD_ENTITY_ID" \
         "Component: AuthService (v1)" \
         "$(get_entity_content $OLD_ENTITY_ID)\n\n**[HISTORICAL]** Superseded by newer analysis" \
         "{\"status\":\"historical\",\"superseded_by\":\"$NEW_ENTITY_ID\"}"
@@ -629,10 +629,10 @@ CUTOFF_DATE=$(date -u -d "$MAX_AGE_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
 
 echo "Finding entities older than $MAX_AGE_DAYS days (before $CUTOFF_DATE)..."
 
-ALL_ENTITIES=$(./kb-cli list-entities)
+ALL_ENTITIES=$(./kb-cli list)
 
 for entity_id in $(echo "$ALL_ENTITIES" | jq -r '.[] | select((.metadata | fromjson).analyzed_at?) | .id'); do
-    ENTITY=$(./kb-cli get-entity "$entity_id")
+    ENTITY=$(./kb-cli get "$entity_id")
     ANALYZED_AT=$(echo "$ENTITY" | jq -r '.metadata | fromjson | .analyzed_at')
     
     if [[ "$ANALYZED_AT" < "$CUTOFF_DATE" ]]; then

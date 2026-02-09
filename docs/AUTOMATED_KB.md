@@ -15,21 +15,21 @@ cd Researcher
 ### 1. Add Research Note
 
 ```bash
-./kb-cli add-entity "Should we adopt GraphQL?" "Research question..." '{"type":"question"}'
+./kb-cli add "Should we adopt GraphQL?" "Research question..." '{"type":"question"}'
 # Output: {"id": "a1b2c3d4", "title": "Should we adopt GraphQL?"}
 ```
 
 ### 2. Add Child Research
 
 ```bash
-./kb-cli add-entity "GraphQL Performance" "Performance characteristics..." '{"type":"research"}'
+./kb-cli add "GraphQL Performance" "Performance characteristics..." '{"type":"research"}'
 # Output: {"id": "e5f6g7h8", "title": "GraphQL Performance"}
 ```
 
 ### 3. Link Them Automatically
 
 ```bash
-./kb-cli add-link a1b2c3d4 e5f6g7h8 "child"
+./kb-cli link a1b2c3d4 e5f6g7h8 "child"
 # Output: {"link_id": 1, "from": "a1b2c3d4", "to": "e5f6g7h8", "type": "child"}
 ```
 
@@ -44,26 +44,26 @@ cd Researcher
 
 ```bash
 # Get all pending tasks
-./kb-cli get-tasks pending
+./kb-cli tasks pending
 
 # Get task details
-./kb-cli get-task 1
+./kb-cli tasks 1
 
 # Mark as in progress
-./kb-cli update-task-status 1 in_progress
+./kb-cli update-task 1 in_progress
 
 # Mark as completed
-./kb-cli update-task-status 1 completed
+./kb-cli update-task 1 completed
 ```
 
 ### 6. Navigate the Knowledge Graph
 
 ```bash
 # Get all links from a node (children)
-./kb-cli get-links-from a1b2c3d4
+./kb-cli links a1b2c3d4
 
 # Get all links to a node (parents)
-./kb-cli get-links-to e5f6g7h8
+./kb-cli links e5f6g7h8
 
 # Search across all content
 ./kb-cli search "GraphQL"
@@ -78,7 +78,7 @@ For AI agents conducting research, the system is fully automatic:
 research_content = agent.web_search("GraphQL performance")
 
 # 2. Agent adds entity (ID auto-generated)
-result = subprocess.run(['./kb-cli', 'add-entity', 
+result = subprocess.run(['./kb-cli', 'add', 
     'GraphQL Performance', research_content, 
     '{"sources": 5, "confidence": "high"}'], 
     capture_output=True)
@@ -93,7 +93,7 @@ subprocess.run(['./kb-cli', 'add-task',
     '{"priority": "medium"}'])
 
 # 5. Agent links related entities
-subprocess.run(['./kb-cli', 'add-link', parent_id, entity_id, 'child'])
+subprocess.run(['./kb-cli', 'link', parent_id, entity_id, 'child'])
 ```
 
 ## Database Schema
@@ -167,7 +167,7 @@ The KB can be exposed as MCP tools. Example MCP server (pseudo-code):
 @server.call_tool()
 async def call_tool(name: str, arguments: dict):
     if name == "add_research_note":
-        result = subprocess.run(['./kb-cli', 'add-entity', 
+        result = subprocess.run(['./kb-cli', 'add', 
             arguments['title'], arguments['content'], 
             json.dumps(arguments.get('metadata', {}))])
         return json.loads(result.stdout)

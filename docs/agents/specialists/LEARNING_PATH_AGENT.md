@@ -51,7 +51,7 @@ SKILL_LEVEL="beginner"  # beginner, intermediate, advanced
 # 1. Research the topic to understand scope
 echo "Researching $TOPIC..."
 RESEARCH_CONTENT=$(research_topic "$TOPIC")
-TOPIC_ID=$(./kb-cli add-entity \
+TOPIC_ID=$(./kb-cli add \
     "Learning Goal: $TOPIC" \
     "$RESEARCH_CONTENT" \
     "{\"type\":\"goal\",\"level\":\"$SKILL_LEVEL\",\"estimated_hours\":120}" | jq -r '.id')
@@ -60,13 +60,13 @@ TOPIC_ID=$(./kb-cli add-entity \
 CONCEPTS=$(identify_core_concepts "$TOPIC")
 for concept in $CONCEPTS; do
     CONCEPT_CONTENT=$(research_concept "$concept")
-    CONCEPT_ID=$(./kb-cli add-entity \
+    CONCEPT_ID=$(./kb-cli add \
         "Concept: $concept" \
         "$CONCEPT_CONTENT" \
         "{\"type\":\"concept\",\"difficulty\":\"$DIFFICULTY\",\"hours\":$HOURS}" | jq -r '.id')
     
     # Link to learning goal
-    ./kb-cli add-link "$CONCEPT_ID" "$TOPIC_ID" "part_of"
+    ./kb-cli link "$CONCEPT_ID" "$TOPIC_ID" "part_of"
     
     # Create task for learning this concept
     ./kb-cli add-task \
@@ -80,7 +80,7 @@ done
 for concept_id in $(get_all_concepts); do
     PREREQS=$(identify_prerequisites "$concept_id")
     for prereq_id in $PREREQS; do
-        ./kb-cli add-link "$prereq_id" "$concept_id" "prerequisite_of"
+        ./kb-cli link "$prereq_id" "$concept_id" "prerequisite_of"
     done
 done
 
@@ -88,37 +88,37 @@ done
 for concept_id in $(get_all_concepts); do
     RESOURCES=$(find_learning_resources "$concept_id")
     for resource in $RESOURCES; do
-        RESOURCE_ID=$(./kb-cli add-entity \
+        RESOURCE_ID=$(./kb-cli add \
             "Resource: $resource_title" \
             "$resource_description\n\nURL: $resource_url" \
             "{\"type\":\"resource\",\"format\":\"$format\",\"duration\":$duration}" | jq -r '.id')
         
-        ./kb-cli add-link "$RESOURCE_ID" "$concept_id" "teaches"
+        ./kb-cli link "$RESOURCE_ID" "$concept_id" "teaches"
     done
 done
 
 # 5. Create milestones
-MILESTONE_1=$(./kb-cli add-entity \
+MILESTONE_1=$(./kb-cli add \
     "Milestone: Fundamentals Complete" \
     "Completed basic concepts and foundations" \
     '{"type":"milestone","level":"beginner","concepts":5}' | jq -r '.id')
 
-MILESTONE_2=$(./kb-cli add-entity \
+MILESTONE_2=$(./kb-cli add \
     "Milestone: Intermediate Skills Achieved" \
     "Can apply concepts to practical problems" \
     '{"type":"milestone","level":"intermediate","concepts":8}' | jq -r '.id')
 
-MILESTONE_3=$(./kb-cli add-entity \
+MILESTONE_3=$(./kb-cli add \
     "Milestone: Advanced Mastery" \
     "Expert-level understanding and application" \
     '{"type":"milestone","level":"advanced","concepts":12}' | jq -r '.id')
 
 # Link milestones in sequence
-./kb-cli add-link "$MILESTONE_1" "$MILESTONE_2" "leads_to"
-./kb-cli add-link "$MILESTONE_2" "$MILESTONE_3" "leads_to"
+./kb-cli link "$MILESTONE_1" "$MILESTONE_2" "leads_to"
+./kb-cli link "$MILESTONE_2" "$MILESTONE_3" "leads_to"
 
 # 6. Generate learning path visualization
-./kb-cli visualize > learning-path.dot
+./kb-cli graph > learning-path.dot
 dot -Tpng learning-path.dot > learning-path.png
 
 # 7. Create study schedule
@@ -175,7 +175,7 @@ for concept in $ASSESSMENT_RESULTS; do
     if [ $SCORE -ge 80 ]; then
         # Mark as mastered
         CONCEPT_ID=$(get_concept_id "$concept")
-        ./kb-cli add-entity \
+        ./kb-cli add \
             "Mastered: $concept" \
             "Score: $SCORE% - No further study needed" \
             "{\"type\":\"concept\",\"status\":\"mastered\",\"score\":$SCORE}" 
@@ -211,7 +211,7 @@ for gap in $PRIORITIZED_GAPS; do
     GAP_ID=$(get_concept_id "$gap")
     
     # Check if prerequisites are met
-    PREREQS=$(./kb-cli get-links-to "$GAP_ID" | jq -r '.[] | select(.link_type == "prerequisite_of") | .id')
+    PREREQS=$(./kb-cli links "$GAP_ID" | jq -r '.[] | select(.link_type == "prerequisite_of") | .id')
     PREREQS_MET=true
     
     for prereq in $PREREQS; do
@@ -233,7 +233,7 @@ for gap in $PRIORITIZED_GAPS; do
 done
 
 # 6. Generate personalized study plan
-READY_TASKS=$(./kb-cli get-tasks pending | jq '[.[] | select(.metadata | fromjson | .ready == true)]')
+READY_TASKS=$(./kb-cli tasks pending | jq '[.[] | select(.metadata | fromjson | .ready == true)]')
 echo "\nYour Personalized Study Plan:"
 echo "$READY_TASKS" | jq -r '.[] | "- \(.title) (Est: \(.metadata | fromjson | .estimated_hours)h)"'
 ```
@@ -273,7 +273,7 @@ Build a comprehensive skill tree showing all related skills and progression path
 CAREER_GOAL="Full-Stack Developer"
 
 # 1. Define career goal
-GOAL_ID=$(./kb-cli add-entity \
+GOAL_ID=$(./kb-cli add \
     "Career Goal: $CAREER_GOAL" \
     "Complete skill set for full-stack development" \
     '{"type":"goal","category":"career","timeline":"12_months"}' | jq -r '.id')
@@ -282,29 +282,29 @@ GOAL_ID=$(./kb-cli add-entity \
 CATEGORIES=("Frontend" "Backend" "Database" "DevOps" "Soft Skills")
 
 for category in "${CATEGORIES[@]}"; do
-    CAT_ID=$(./kb-cli add-entity \
+    CAT_ID=$(./kb-cli add \
         "Category: $category" \
         "Skills related to $category development" \
         "{\"type\":\"concept\",\"category\":\"$category\"}" | jq -r '.id')
     
-    ./kb-cli add-link "$CAT_ID" "$GOAL_ID" "part_of"
+    ./kb-cli link "$CAT_ID" "$GOAL_ID" "part_of"
     
     # 3. Add skills to each category
     SKILLS=$(get_skills_for_category "$category")
     for skill in $SKILLS; do
-        SKILL_ID=$(./kb-cli add-entity \
+        SKILL_ID=$(./kb-cli add \
             "Skill: $skill" \
             "$(describe_skill $skill)" \
             "{\"type\":\"concept\",\"category\":\"$category\",\"level\":\"$LEVEL\"}" | jq -r '.id')
         
-        ./kb-cli add-link "$SKILL_ID" "$CAT_ID" "part_of"
+        ./kb-cli link "$SKILL_ID" "$CAT_ID" "part_of"
         
         # 4. Add progression levels
         if [ "$LEVEL" = "beginner" ]; then
             NEXT_LEVEL=$(get_intermediate_skill "$skill")
             if [ -n "$NEXT_LEVEL" ]; then
                 NEXT_ID=$(get_or_create_skill "$NEXT_LEVEL" "intermediate")
-                ./kb-cli add-link "$SKILL_ID" "$NEXT_ID" "prerequisite_of"
+                ./kb-cli link "$SKILL_ID" "$NEXT_ID" "prerequisite_of"
             fi
         fi
     done
@@ -312,7 +312,7 @@ done
 
 # 5. Map interdependencies
 # Frontend skills that require Backend knowledge
-./kb-cli add-link \
+./kb-cli link \
     "$(get_skill_id 'RESTful APIs')" \
     "$(get_skill_id 'API Integration')" \
     "prerequisite_of"
@@ -320,14 +320,14 @@ done
 # 6. Create learning tracks
 TRACKS=("Fast Track" "Thorough Track" "Specialized Track")
 for track in "${TRACKS[@]}"; do
-    TRACK_ID=$(./kb-cli add-entity \
+    TRACK_ID=$(./kb-cli add \
         "Learning Track: $track" \
         "$(describe_track $track)" \
         "{\"type\":\"milestone\",\"duration\":\"$DURATION\"}" | jq -r '.id')
 done
 
 # 7. Generate skill tree visualization
-./kb-cli visualize > skill-tree.dot
+./kb-cli graph > skill-tree.dot
 dot -Tpng -Grankdir=LR skill-tree.dot > skill-tree.png
 
 echo "Skill tree generated with $(./kb-cli stats | jq '.entities') skills"
@@ -477,7 +477,7 @@ class LearningPathAgent:
     def add_entity(self, title: str, content: str, metadata: Dict) -> str:
         """Add entity to knowledge base"""
         result = subprocess.run(
-            [self.kb_cli, "add-entity", title, content, json.dumps(metadata)],
+            [self.kb_cli, "add", title, content, json.dumps(metadata)],
             capture_output=True,
             text=True
         )
@@ -485,7 +485,7 @@ class LearningPathAgent:
     
     def add_link(self, from_id: str, to_id: str, link_type: str):
         """Add link between entities"""
-        subprocess.run([self.kb_cli, "add-link", from_id, to_id, link_type])
+        subprocess.run([self.kb_cli, "link", from_id, to_id, link_type])
     
     def research_topic(self, topic: str) -> List[Dict]:
         """Research topic and extract core concepts"""

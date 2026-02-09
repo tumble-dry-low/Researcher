@@ -10,16 +10,16 @@ This system is designed for **maximum automation** - agents just add information
 
 ```bash
 # 1. Add research findings (ID auto-generated)
-./kb-cli add-entity "Research Title" "Content with sources" '{"tags":["AI","ML"]}'
+./kb-cli add "Research Title" "Content with sources" '{"tags":["AI","ML"]}'
 
 # 2. Link related findings (automatic)
-./kb-cli add-link parent_id child_id "child"
+./kb-cli link parent_id child_id "child"
 
 # 3. Add follow-up tasks (automatic backlog)
 ./kb-cli add-task "Research topic X" "Details..." parent_id '{"priority":"high"}'
 
 # 4. Query next work
-./kb-cli get-tasks pending
+./kb-cli tasks pending
 ```
 
 ### What System Manages
@@ -63,7 +63,7 @@ RESEARCH_CONTENT="# GraphQL vs REST APIs
 "
 
 # 4. Save to knowledge base
-ENTITY_ID=$(./kb-cli add-entity "$TOPIC" "$RESEARCH_CONTENT" '{"type":"standard","sources":10,"depth":3}' | jq -r '.id')
+ENTITY_ID=$(./kb-cli add "$TOPIC" "$RESEARCH_CONTENT" '{"type":"standard","sources":10,"depth":3}' | jq -r '.id')
 
 echo "Research saved: $ENTITY_ID"
 ```
@@ -102,15 +102,15 @@ Strength: strong (7 sources, 8 arguments)
 "
     
     # Save position
-    POS_ID=$(./kb-cli add-entity "$QUESTION - $stance" "$CONTENT" "{\"stance\":\"$stance\",\"type\":\"position\"}" | jq -r '.id')
+    POS_ID=$(./kb-cli add "$QUESTION - $stance" "$CONTENT" "{\"stance\":\"$stance\",\"type\":\"position\"}" | jq -r '.id')
     POSITION_IDS+=("$POS_ID")
 done
 
 # 3. Create parent structured research node linking all positions
-PARENT_ID=$(./kb-cli add-entity "$QUESTION" "Structured research with multiple perspectives" '{"type":"structured","positions":2}' | jq -r '.id')
+PARENT_ID=$(./kb-cli add "$QUESTION" "Structured research with multiple perspectives" '{"type":"structured","positions":2}' | jq -r '.id')
 
 for pos_id in "${POSITION_IDS[@]}"; do
-    ./kb-cli add-link "$PARENT_ID" "$pos_id" "position"
+    ./kb-cli link "$PARENT_ID" "$pos_id" "position"
 done
 
 echo "Structured research completed: $PARENT_ID"
@@ -123,7 +123,7 @@ echo "Structured research completed: $PARENT_ID"
 ```bash
 # 1. Start with root question
 ROOT_Q="Should we migrate to cloud?"
-ROOT_ID=$(./kb-cli add-entity "$ROOT_Q" "Root question" '{"type":"tree-root","depth":0}' | jq -r '.id')
+ROOT_ID=$(./kb-cli add "$ROOT_Q" "Root question" '{"type":"tree-root","depth":0}' | jq -r '.id')
 
 # 2. Research root with multiple positions
 # ... conduct structured research on root question ...
@@ -134,7 +134,7 @@ IS_CONCLUSIVE=false  # Set based on research results
 
 if [ "$IS_CONCLUSIVE" = "true" ]; then
     # Mark conclusive, don't branch
-    ./kb-cli update-entity "$ROOT_ID" "" "" '{"conclusive":true,"correct_position":"yes"}'
+    ./kb-cli update "$ROOT_ID" "" "" '{"conclusive":true,"correct_position":"yes"}'
     echo "Research conclusive: $ROOT_ID"
 else
     # Generate follow-up questions from moderate findings
@@ -142,10 +142,10 @@ else
     
     for followup in "${FOLLOW_UPS[@]}"; do
         # Create child node
-        CHILD_ID=$(./kb-cli add-entity "$followup" "Follow-up question" "{\"type\":\"tree-node\",\"depth\":1,\"parent\":\"$ROOT_ID\"}" | jq -r '.id')
+        CHILD_ID=$(./kb-cli add "$followup" "Follow-up question" "{\"type\":\"tree-node\",\"depth\":1,\"parent\":\"$ROOT_ID\"}" | jq -r '.id')
         
         # Link to parent
-        ./kb-cli add-link "$ROOT_ID" "$CHILD_ID" "child"
+        ./kb-cli link "$ROOT_ID" "$CHILD_ID" "child"
         
         # Add to task backlog for recursive research
         ./kb-cli add-task "Research: $followup" "Conduct structured research on this follow-up" "$CHILD_ID" '{"priority":"high"}'
@@ -153,7 +153,7 @@ else
 fi
 
 # 4. Work through backlog recursively
-PENDING=$(./kb-cli get-tasks pending | jq -r '.[].id' | head -1)
+PENDING=$(./kb-cli tasks pending | jq -r '.[].id' | head -1)
 if [ ! -z "$PENDING" ]; then
     echo "Next task: $PENDING"
     # Process this task (recursive call to step 2)
@@ -178,7 +178,7 @@ else
 fi
 
 # Include in metadata
-./kb-cli add-entity "Position" "Content" "{\"strength\":\"$STRENGTH\",\"sources\":$SOURCES,\"arguments\":$ARGUMENTS}"
+./kb-cli add "Position" "Content" "{\"strength\":\"$STRENGTH\",\"sources\":$SOURCES,\"arguments\":$ARGUMENTS}"
 ```
 
 ## Branch Pruning Logic
@@ -204,24 +204,24 @@ def is_conclusive(positions):
 
 ```bash
 # Get next task
-TASK=$(./kb-cli get-tasks pending | jq -r '.[0]')
+TASK=$(./kb-cli tasks pending | jq -r '.[0]')
 TASK_ID=$(echo "$TASK" | jq -r '.id')
 ENTITY_ID=$(echo "$TASK" | jq -r '.entity_id')
 
 # Mark as in progress
-./kb-cli update-task-status "$TASK_ID" in_progress
+./kb-cli update-task "$TASK_ID" in_progress
 
 # Do the research work...
 # ... conduct web searches, synthesize findings ...
 
 # Save results
-./kb-cli update-entity "$ENTITY_ID" "Title" "Research results..."
+./kb-cli update "$ENTITY_ID" "Title" "Research results..."
 
 # Mark task as completed
-./kb-cli update-task-status "$TASK_ID" completed
+./kb-cli update-task "$TASK_ID" completed
 
 # Check for more work
-REMAINING=$(./kb-cli get-tasks pending | jq '. | length')
+REMAINING=$(./kb-cli tasks pending | jq '. | length')
 echo "Remaining tasks: $REMAINING"
 ```
 
@@ -277,7 +277,7 @@ GraphQL reduces over-fetching by allowing clients to specify exact data requirem
 
 ```bash
 # Check if command succeeded
-if ! RESULT=$(./kb-cli add-entity "Title" "Content" '{}' 2>&1); then
+if ! RESULT=$(./kb-cli add "Title" "Content" '{}' 2>&1); then
     echo "Error adding entity: $RESULT" >&2
     exit 1
 fi
@@ -289,7 +289,7 @@ if ! ENTITY_ID=$(echo "$RESULT" | jq -r '.id' 2>/dev/null); then
 fi
 
 # Verify entity was created
-if ! ./kb-cli get-entity "$ENTITY_ID" >/dev/null 2>&1; then
+if ! ./kb-cli get "$ENTITY_ID" >/dev/null 2>&1; then
     echo "Entity not found: $ENTITY_ID" >&2
     exit 1
 fi
@@ -301,10 +301,10 @@ fi
 
 ```bash
 # Get research statistics
-TOTAL_ENTITIES=$(./kb-cli list-entities | jq '. | length')
+TOTAL_ENTITIES=$(./kb-cli list | jq '. | length')
 TOTAL_LINKS=$(./kb-cli stats | jq '.links')
-PENDING_TASKS=$(./kb-cli get-tasks pending | jq '. | length')
-COMPLETED_TASKS=$(./kb-cli get-tasks completed | jq '. | length')
+PENDING_TASKS=$(./kb-cli tasks pending | jq '. | length')
+COMPLETED_TASKS=$(./kb-cli tasks completed | jq '. | length')
 
 echo "Research Progress:"
 echo "  Entities: $TOTAL_ENTITIES"
@@ -319,13 +319,13 @@ echo "  Completed: $COMPLETED_TASKS"
 
 ```bash
 # Export single entity as markdown
-./kb-cli export-entity abc123 > research-abc123.md
+./kb-cli export abc123 > research-abc123.md
 
 # Export entire knowledge graph
-./kb-cli export-all > knowledge-base-export.json
+./kb-cli export --all > knowledge-base-export.json
 
 # Generate visual graph (requires graphviz)
-./kb-cli visualize | dot -Tpng > knowledge-graph.png
+./kb-cli graph | dot -Tpng > knowledge-graph.png
 ```
 
 ## Integration with Copilot CLI
@@ -351,10 +351,10 @@ When asked to research a topic:
 
 1. Determine research type (standard, structured, or tree)
 2. Conduct web searches using appropriate queries
-3. Save findings to knowledge base using `kb-cli add-entity`
-4. Link related findings using `kb-cli add-link`
+3. Save findings to knowledge base using `kb-cli add`
+4. Link related findings using `kb-cli link`
 5. Add follow-up tasks using `kb-cli add-task`
-6. Work through backlog using `kb-cli get-tasks pending`
+6. Work through backlog using `kb-cli tasks pending`
 
 ## Example
 
@@ -369,7 +369,7 @@ queries=("GraphQL benefits" "REST advantages" "API performance comparison")
 # ... conduct web searches ...
 
 # 3. Save to KB
-./kb-cli add-entity "GraphQL vs REST" "$content" '{"type":"standard"}'
+./kb-cli add "GraphQL vs REST" "$content" '{"type":"standard"}'
 
 # 4. Report results
 echo "Research completed. Key findings: ..."
@@ -378,8 +378,8 @@ echo "Research completed. Key findings: ..."
 ## Rules
 
 - **Always cite sources**: Findings without sources are inadmissible
-- **Work the backlog**: Check `kb-cli get-tasks pending` and complete tasks autonomously
-- **Link related work**: Use `kb-cli add-link` to connect related research
+- **Work the backlog**: Check `kb-cli tasks pending` and complete tasks autonomously
+- **Link related work**: Use `kb-cli link` to connect related research
 - **Use metadata**: Include tags, confidence, depth in all entities
 ````
 
@@ -397,7 +397,7 @@ server = Server("researcher")
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     if name == "add_research_note":
         result = subprocess.run([
-            './kb-cli', 'add-entity',
+            './kb-cli', 'add',
             arguments['title'],
             arguments['content'],
             json.dumps(arguments.get('metadata', {}))
@@ -419,14 +419,14 @@ Start broad, then go deep:
 
 ```bash
 # Level 1: Overview
-./kb-cli add-entity "Topic Overview" "High-level summary" '{"depth":1}'
+./kb-cli add "Topic Overview" "High-level summary" '{"depth":1}'
 
 # Level 2: Key aspects
-./kb-cli add-entity "Aspect A" "Detailed research" '{"depth":2}'
-./kb-cli add-entity "Aspect B" "Detailed research" '{"depth":2}'
+./kb-cli add "Aspect A" "Detailed research" '{"depth":2}'
+./kb-cli add "Aspect B" "Detailed research" '{"depth":2}'
 
 # Level 3: Specific questions
-./kb-cli add-entity "Detail X" "Very specific finding" '{"depth":3}'
+./kb-cli add "Detail X" "Very specific finding" '{"depth":3}'
 ```
 
 ### 2. Parallel Processing
@@ -438,7 +438,7 @@ Research multiple aspects simultaneously:
 for topic in "${TOPICS[@]}"; do
     (
         # Each runs in background
-        ./kb-cli add-entity "$topic" "$(research_topic $topic)" '{}'
+        ./kb-cli add "$topic" "$(research_topic $topic)" '{}'
     ) &
 done
 
@@ -453,7 +453,7 @@ Keep building the knowledge base:
 ```bash
 while true; do
     # Get next pending task
-    TASK=$(./kb-cli get-tasks pending | jq -r '.[0]')
+    TASK=$(./kb-cli tasks pending | jq -r '.[0]')
     
     if [ "$TASK" = "null" ]; then
         echo "No more tasks. Research complete."
@@ -464,7 +464,7 @@ while true; do
     process_task "$TASK"
     
     # Mark completed
-    ./kb-cli update-task-status "$(echo $TASK | jq -r '.id')" completed
+    ./kb-cli update-task "$(echo $TASK | jq -r '.id')" completed
 done
 ```
 
@@ -485,7 +485,7 @@ python3 --version
 ```bash
 # Only one process should write at a time
 # Use advisory locks for parallel writes
-flock /tmp/kb.lock ./kb-cli add-entity "..." "..." '{}'
+flock /tmp/kb.lock ./kb-cli add "..." "..." '{}'
 ```
 
 ### Invalid JSON
@@ -500,7 +500,9 @@ fi
 
 ## See Also
 
-- `AUTOMATED_KB.md` - Complete API reference
-- `README.md` - Research methodology
-- `kb.py` - Python implementation
-- `kb-cli` - Command-line interface
+- `AUTOMATED_KB.md` - Automation patterns
+- `../README.md` - Overview and CLI reference
+- `../kb.py` - Python implementation
+- `../kb-cli` - Command-line interface
+- `agents/coordinators/` - Coordinator agent definitions
+- `agents/specialists/` - Specialist agent definitions
